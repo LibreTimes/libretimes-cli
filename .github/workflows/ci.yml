@@ -1,0 +1,139 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # windows-latest catches what ubuntu-only coverage cannot: nothing here ran
+  # on Windows before 2026-09-03, which is how the glob-expansion bug
+  # (WINDOWS.md #1) shipped undetected -- `go test` never exercised a
+  # platform where the shell does not expand `*` itself. gofmt and the
+  # go.mod-tidy check are pure source-tree checks with no OS dependence, so
+  # they stay ubuntu-only rather than doubling CI time for no new signal.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          unformatted=$(gofmt -l -s .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::these files are not gofmt -s clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      # -race needs a C toolchain, which windows-latest does not have wired up
+      # for cgo by default (ubuntu-24.04 and macOS runners do). Rather than
+      # provision one just for this, Windows runs the same tests without it --
+      # still real coverage of the platform-specific paths, just not of races.
+      - name: test
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            go test -count=1 ./...
+          else
+            go test -race -count=1 ./...
+          fi
+
+      - name: go.mod is tidy
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+  # The claim that one Linux runner builds every target is load-bearing for the
+  # release workflow, so it is checked on every PR rather than discovered on a
+  # tag. This is also the only place the darwin/arm64 ad-hoc signature gets
+  # verified — a Go release that stopped emitting it would otherwise ship
+  # binaries the macOS kernel refuses to start.
+  cross:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: build every target
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -eu
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 \
+                        windows/amd64 windows/arm64; do
+            os=${target%/*}; arch=${target#*/}
+            ext=""; [ "$os" = windows ] && ext=.exe
+            echo "  $os/$arch"
+            GOOS=$os GOARCH=$arch go build -o "dist/lt_${os}_${arch}${ext}" ./cmd/lt
+          done
+
+      - name: darwin/arm64 carries an ad-hoc code signature
+        run: |
+          python3 - <<'PY'
+          import struct, sys
+          data = open("dist/lt_darwin_arm64", "rb").read()
+          ncmds = struct.unpack("<IiiIIIII", data[:32])[4]
+          offset, signed = 32, False
+          for _ in range(ncmds):
+              cmd, size = struct.unpack("<II", data[offset:offset + 8])
+              if cmd == 0x1D:          # LC_CODE_SIGNATURE
+                  signed = True
+              offset += size
+          if not signed:
+              sys.exit("darwin/arm64 has no LC_CODE_SIGNATURE; "
+                       "Apple Silicon will refuse to start it")
+          print("darwin/arm64: LC_CODE_SIGNATURE present")
+          PY
+
+      - name: linux binaries are static
+        run: |
+          if file dist/lt_linux_amd64 | grep -q "dynamically linked"; then
+            echo "::error::the linux binary is dynamically linked; it will not run everywhere"
+            exit 1
+          fi
+          file dist/lt_linux_amd64
+
+  # Catches a broken release config on the PR that introduced it, rather than
+  # on the tag where it would abort a release half-published.
+  goreleaser-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          version: "~> v2"
+          args: check

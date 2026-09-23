@@ -1,0 +1,124 @@
+# GoReleaser v2. Every target builds on one Linux runner.
+#
+# CGO_ENABLED=0 is what makes that true, twice over:
+#   - Linux binaries link statically, so one artefact runs on Debian, Alpine,
+#     Amazon Linux and distroless alike. No manylinux container, no glibc
+#     version floor.
+#   - darwin/arm64 gets the ad-hoc code signature Apple Silicon's kernel
+#     requires, emitted by Go's own linker. `codesign` is never involved and is
+#     not available on Linux anyway.
+#
+# What the ad-hoc signature does NOT do is satisfy Gatekeeper, which wants a
+# Developer ID signature and notarization for anything carrying the
+# com.apple.quarantine attribute. Browsers set that; curl and Homebrew do not.
+# See the install section of the README — the two documented macOS paths both
+# work unsigned, which is why signing is deferred rather than blocking.
+
+version: 2
+
+project_name: lt
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: lt
+    main: ./cmd/lt
+    binary: lt
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    # The runner's checkout path otherwise ends up in every panic trace and in
+    # the binary's strings. Trimmed, the binary is the same wherever it is built.
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/The-LibreTimes/libretimes-cli/internal/cli.Version={{ .Version }}
+      - -X github.com/The-LibreTimes/libretimes-cli/internal/cli.Commit={{ .Commit }}
+      - -X github.com/The-LibreTimes/libretimes-cli/internal/cli.Date={{ .Date }}
+    # Reproducible: without this the build stamps the wall clock, so two
+    # builds of one commit differ and the checksums mean less than they look
+    # like they mean.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: lt
+    # tar.gz everywhere except Windows, where zip is what people expect and
+    # what Explorer opens without a third-party tool.
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+# Homebrew is one of the two macOS paths that works without an Apple Developer
+# certificate: `brew install` strips the quarantine attribute, so an unsigned
+# binary runs. A cask rather than a formula — formulas for prebuilt binaries
+# are deprecated in GoReleaser v2.
+homebrew_casks:
+  - name: lt
+    repository:
+      owner: The-LibreTimes
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/The-LibreTimes/libretimes-cli
+    description: Work with LibreTimes from the command line
+    license: Apache-2.0
+    skip_upload: auto
+    # Belt and braces: Homebrew already strips quarantine on install, but a
+    # cask that says so explicitly does not depend on that staying true.
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr",
+                           args: ["-dr", "com.apple.quarantine", "#{staged_path}/lt"]
+          end
+
+release:
+  github:
+    owner: The-LibreTimes
+    # The repository, which is `libretimes-cli`. The *command* stays `lt` —
+    # that is `project_name`, `builds[].binary` and the cask name above, and
+    # none of them follow the repo. Descriptive repo, short command.
+    name: libretimes-cli
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Install
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/The-LibreTimes/libretimes-cli/main/install.sh | sh
+    ```
+
+    or `brew install The-LibreTimes/tap/lt`.
+
+    Every archive is listed in `checksums.txt`, and the binaries carry a
+    GitHub build-provenance attestation — verify with:
+
+    ```sh
+    gh attestation verify lt --repo The-LibreTimes/libretimes-cli
+    ```

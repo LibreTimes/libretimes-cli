@@ -1,0 +1,65 @@
+# The drift check.
+#
+# lt hand-writes its request and response structs rather than generating them
+# from the BFF's OpenAPI document — four endpoints do not justify wiring a
+# generator into the build, and a generator would couple `go build` to a
+# network fetch. This is what buys back the safety that decision gives up.
+#
+# The spec is public and reachable through the edge, so this needs no
+# credential of any kind.
+#
+# The snapshot is trimmed to the paths lt calls (see `make snapshot`), so
+# unrelated API churn — and the platform ships a lot of it — does not turn this
+# into noise that gets muted.
+#
+# It captures the referenced component schemas too, not just the path objects.
+# A path object holds `$ref`s, so renaming a field inside `ProfileMe` leaves it
+# byte-identical — which is how `lt whoami` shipped reading `profile_id` from a
+# response that returns `id`, with this check green the whole time.
+name: contract
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, early
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: fetch the live spec
+        run: |
+          curl -fsSL --retry 3 --retry-delay 5 --max-time 60 \
+            https://api.libretimes.io/libretimes/openapi.json \
+            -o /tmp/live.json
+
+      # `shell: bash` for pipefail. The default shell is `bash -e` WITHOUT it,
+      # so `check ... | tee` would report tee's exit code and drift would be
+      # swallowed — the step could never fail, and the issue below never open.
+      - name: compare the paths and schemas lt depends on
+        shell: bash
+        run: |
+          python3 scripts/contract.py check /tmp/live.json testdata/openapi-snapshot.json \
+            | tee /tmp/report.txt
+
+      - name: open an issue on drift
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # One rolling issue rather than a new one every Monday.
+          existing=$(gh issue list --label api-drift --state open \
+            --json number --jq '.[0].number' 2>/dev/null || true)
+          body=$(printf 'The LibreTimes API changed on a path lt calls.\n\n```\n%s\n```\n\nCheck whether the client still agrees, then refresh the snapshot with `make snapshot`.' "$(cat /tmp/report.txt)")
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "API drift on a watched path" \
+              --label api-drift --body "$body"
+          fi

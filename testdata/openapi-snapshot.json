@@ -1,0 +1,6747 @@
+{
+  "_note": "Trimmed to the paths lt calls, with their $refs resolved into `schemas`. Regenerate with `make snapshot`. See .github/workflows/contract.yml.",
+  "paths": {
+    "/libretimes/v1/collections": {
+      "get": {
+        "description": "Public collections, newest first. Signed-in callers also see\n`authenticated` ones. Takes either `offset` or `cursor`.",
+        "operationId": "list_collections_libretimes_v1_collections_get",
+        "parameters": [
+          {
+            "description": "Only editorially featured collections",
+            "in": "query",
+            "name": "featured",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only editorially featured collections",
+              "title": "Featured"
+            }
+          },
+          {
+            "description": "Only collections tagged with this category",
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only collections tagged with this category",
+              "title": "Category Id"
+            }
+          },
+          {
+            "description": "Rows to skip. Ignored when `cursor` is set.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Rows to skip. Ignored when `cursor` is set.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Opaque cursor from a previous response's `next_cursor`. Takes precedence over `offset`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's `next_cursor`. Takes precedence over `offset`.",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Collections",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      },
+      "post": {
+        "operationId": "create_collection_libretimes_v1_collections_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Collection",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      }
+    },
+    "/libretimes/v1/collections/me/by-import-key": {
+      "get": {
+        "description": "Find the caller's own collection carrying this `import_key`.\n\nThe lookup `lt course` does before deciding create-or-update, the same way\n`/publications/me/by-import-key` serves `lt publish`. Owner-scoped: a 404\nmeans \"you have not imported this\". `relay_response`, not the card\nenrichment -- the shape carries nothing to resolve.",
+        "operationId": "my_collection_by_import_key_libretimes_v1_collections_me_by_import_key_get",
+        "parameters": [
+          {
+            "description": "The import_key a previous import wrote on the row",
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "description": "The import_key a previous import wrote on the row",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionImportRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Collection By Import Key",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      }
+    },
+    "/libretimes/v1/collections/{collection_id}": {
+      "delete": {
+        "description": "Owner only. Items go with it.",
+        "operationId": "delete_collection_libretimes_v1_collections__collection_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Collection",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      },
+      "get": {
+        "description": "One collection with its items in order.\n\n404 -- never 403 -- when the caller's level is insufficient, so the response\ndoes not disclose that a private collection exists.\n\nTwo upstream calls, in this order and not the other: the viewer level must be\nresolved against *this collection's* creator, and the creator is not known\nuntil we ask. Reading the collection first and retrying would never work --\na `connections` collection 404s on the first call, so the creator id we would\nneed to earn access to it is exactly what the failed response does not\ncontain. The same shape as the attachment serve path.",
+        "operationId": "get_collection_libretimes_v1_collections__collection_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Content language to serve. Relayed as-is; answered in `content_language`.",
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Content language to serve. Relayed as-is; answered in `content_language`.",
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Collection",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      },
+      "patch": {
+        "description": "Owner only. Omitted fields are left alone; sending `category_ids`\nreplaces the whole set.",
+        "operationId": "update_collection_libretimes_v1_collections__collection_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Collection",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      }
+    },
+    "/libretimes/v1/collections/{collection_id}/items": {
+      "get": {
+        "description": "One page of a collection's contents.\n\nThe detail read embeds only a first page, so this is how a reader reaches the\nrest of a long reading list. Same creator-then-viewer-access dance as the\ndetail read, and the same 404-never-403 behaviour falls out of it -- an\nunreadable collection must not become readable one item at a time.",
+        "operationId": "list_collection_items_libretimes_v1_collections__collection_id__items_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip. Ignored when `cursor` is set.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Rows to skip. Ignored when `cursor` is set.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Opaque cursor from a previous response's `next_cursor`. Takes precedence over `offset`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's `next_cursor`. Takes precedence over `offset`.",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionItemPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Collection Items",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      },
+      "post": {
+        "description": "Add items, skipping any already present -- a re-send is idempotent.",
+        "operationId": "add_items_libretimes_v1_collections__collection_id__items_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Items",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      }
+    },
+    "/libretimes/v1/collections/{collection_id}/items/order": {
+      "put": {
+        "description": "Set `position` to each id's index in `entity_ids`. Items absent from the\nlist keep their current position.",
+        "operationId": "reorder_items_libretimes_v1_collections__collection_id__items_order_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reorder Items",
+        "tags": [
+          "collections",
+          "collections"
+        ]
+      }
+    },
+    "/libretimes/v1/profiles/me": {
+      "get": {
+        "operationId": "get_my_profile_libretimes_v1_profiles_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileMe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get My Profile",
+        "tags": [
+          "profiles"
+        ]
+      },
+      "patch": {
+        "operationId": "update_my_profile_libretimes_v1_profiles_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileMe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update My Profile",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/libretimes/v1/profiles/{username}": {
+      "get": {
+        "description": "Public profile read. Resolves username → profile_id, then forwards with\nthe viewer's access level. Owners use /profiles/me for the full shape; this\nroute always returns the public (visibility-filtered) shape.\n\n**`lang` is a passthrough.** The resolution, the published set and the\nper-field languages come back from profile-service in `content_language` and\nare relayed untouched. There is deliberately no public translations route\nbeside this one: a reader gets a translated profile by asking for the profile\nin a language, and a second read path would drift from the first.",
+        "operationId": "get_profile_by_username_libretimes_v1_profiles__username__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Content language to serve. Relayed to profile-service untouched.",
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Content language to serve. Relayed to profile-service untouched.",
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Profile By Username",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/libretimes/v1/publications": {
+      "get": {
+        "description": "The public listing, paged. Takes either `offset` (the numbered-page\ncontrol the web listing renders) or `cursor` (load-more / infinite clients);\nthe response carries both keys either way. See\ndocs/architecture/pagination.md.\n\n**The same rows for everyone, signed in or not.** No viewer is forwarded, so\nan author browsing here -- including their own profile's publications tab,\nwhich is this route under `author_id` -- sees the public listing exactly as a\nstranger does. Their `private` and `by_link` work lives on\n`/publications/me`.",
+        "operationId": "list_publications_libretimes_v1_publications_get",
+        "parameters": [
+          {
+            "description": "Rows to skip. Ignored when `cursor` is set.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Rows to skip. Ignored when `cursor` is set.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Opaque cursor from a previous response's `next_cursor`. Takes precedence over `offset`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's `next_cursor`. Takes precedence over `offset`.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "author_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PublicationType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_ai_usage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AIUsage"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Ai Usage"
+            }
+          },
+          {
+            "description": "Only publications created at or after this instant",
+            "in": "query",
+            "name": "created_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only publications created at or after this instant",
+              "title": "Created After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Publications",
+        "tags": [
+          "publications"
+        ]
+      },
+      "post": {
+        "operationId": "create_publication_libretimes_v1_publications_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Publication",
+        "tags": [
+          "publications"
+        ]
+      }
+    },
+    "/libretimes/v1/publications/me/by-import-key": {
+      "get": {
+        "description": "Find the caller's own publication carrying this `import_key`.\n\nThe lookup an importer does before deciding create-or-update, and the only\npublic read that reports the caller's `removed` and draft rows. Those are\nexactly the rows whose keys still occupy the unique index, so an importer\nthat cannot see them creates and takes a 409 that repeats forever (#663).\n\nOwner-scoped, so reporting a soft-deleted row leaks nothing: the caller is\nits author. Not merged into `/publications/me` -- one query parameter should\nnot change which rows an endpoint may reveal.\n\n`relay_response`, not `relay_with_authors`: the shape carries no byline to\nenrich.",
+        "operationId": "my_publication_by_import_key_libretimes_v1_publications_me_by_import_key_get",
+        "parameters": [
+          {
+            "description": "The import_key a previous import wrote on the row",
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "description": "The import_key a previous import wrote on the row",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationImportRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Publication By Import Key",
+        "tags": [
+          "publications"
+        ]
+      }
+    },
+    "/libretimes/v1/publications/{pub_id}": {
+      "delete": {
+        "operationId": "delete_publication_libretimes_v1_publications__pub_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pub_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pub Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Publication",
+        "tags": [
+          "publications"
+        ]
+      },
+      "get": {
+        "operationId": "get_publication_libretimes_v1_publications__pub_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pub_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pub Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Share-link token for a by_link publication",
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Share-link token for a by_link publication",
+              "title": "Token"
+            }
+          },
+          {
+            "description": "Content language to serve. Relayed as-is; publications-service answers with `content_language`, and an unknown or unpublished value is echoed back for the frontend to redirect, never a 422.",
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Content language to serve. Relayed as-is; publications-service answers with `content_language`, and an unknown or unpublished value is echoed back for the frontend to redirect, never a 422.",
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Publication",
+        "tags": [
+          "publications"
+        ]
+      },
+      "patch": {
+        "operationId": "update_publication_libretimes_v1_publications__pub_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pub_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pub Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Publication",
+        "tags": [
+          "publications"
+        ]
+      }
+    },
+    "/libretimes/v1/publications/{pub_id}/authors": {
+      "get": {
+        "description": "The full byline including pending invitations. Restricted downstream to\npeople already on it.",
+        "operationId": "list_authors_libretimes_v1_publications__pub_id__authors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pub_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pub Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicationAuthorOut"
+                  },
+                  "title": "Response List Authors Libretimes V1 Publications  Pub Id  Authors Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Authors",
+        "tags": [
+          "authors"
+        ]
+      },
+      "post": {
+        "operationId": "invite_author_libretimes_v1_publications__pub_id__authors_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pub_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pub Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationAuthorInvite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationAuthorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite Author",
+        "tags": [
+          "authors"
+        ]
+      }
+    },
+    "/libretimes/v1/works/{work_id}/contents": {
+      "get": {
+        "description": "The division tree. Answers for a one-unit book too, rather than\n404ing: the reader's rail uses the same data and \"one chapter\" is a real\ntree.",
+        "operationId": "get_contents_libretimes_v1_works__work_id__contents_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Content language: which expression to read, when `e` is not given.",
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Content language: which expression to read, when `e` is not given.",
+              "title": "Lang"
+            }
+          },
+          {
+            "description": "A specific expression to read.",
+            "in": "query",
+            "name": "e",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A specific expression to read.",
+              "title": "E"
+            }
+          },
+          {
+            "description": "Share-link token for a by_link book",
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Share-link token for a by_link book",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Contents",
+        "tags": [
+          "books",
+          "books"
+        ]
+      }
+    },
+    "/libretimes/v1/works/{work_id}/expressions/{expression_id}/divisions": {
+      "post": {
+        "description": "A new node -- navigation until it has a body.",
+        "operationId": "create_division_libretimes_v1_works__work_id__expressions__expression_id__divisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "expression_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expression Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DivisionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DivisionEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Division",
+        "tags": [
+          "books",
+          "books"
+        ]
+      }
+    },
+    "/libretimes/v1/works/{work_id}/expressions/{expression_id}/divisions/{division_id}": {
+      "delete": {
+        "description": "The node and its subtree.",
+        "operationId": "delete_division_libretimes_v1_works__work_id__expressions__expression_id__divisions__division_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "expression_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expression Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "division_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Division Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Division",
+        "tags": [
+          "books",
+          "books"
+        ]
+      },
+      "get": {
+        "description": "One division as the editor holds it, body and all, page or not.",
+        "operationId": "get_division_for_edit_libretimes_v1_works__work_id__expressions__expression_id__divisions__division_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "expression_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expression Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "division_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Division Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DivisionEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Division For Edit",
+        "tags": [
+          "books",
+          "books"
+        ]
+      },
+      "patch": {
+        "description": "Fields and body; a body gives the node its page. `exclude_unset`, so\na field left out is left alone and a field sent as null is cleared.",
+        "operationId": "update_division_libretimes_v1_works__work_id__expressions__expression_id__divisions__division_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "expression_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expression Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "division_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Division Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DivisionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DivisionEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Division",
+        "tags": [
+          "books",
+          "books"
+        ]
+      }
+    },
+    "/libretimes/v1/works/{work_id}/expressions/{expression_id}/divisions/{division_id}/move": {
+      "post": {
+        "description": "Re-parent and/or reorder a subtree.",
+        "operationId": "move_division_libretimes_v1_works__work_id__expressions__expression_id__divisions__division_id__move_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "expression_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expression Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "division_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Division Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DivisionMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DivisionEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Move Division",
+        "tags": [
+          "books",
+          "books"
+        ]
+      }
+    }
+  },
+  "schemas": {
+    "AIUsage": {
+      "description": "Author-disclosed AI involvement, least to most. See content-policy.md.",
+      "enum": [
+        "none",
+        "assisted",
+        "mostly_ai",
+        "fully_ai"
+      ],
+      "title": "AIUsage",
+      "type": "string"
+    },
+    "AddItemsRequest": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/ItemIn"
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "AddItemsRequest",
+      "type": "object"
+    },
+    "AttachmentOut": {
+      "properties": {
+        "content_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Type"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "download_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Download Url"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "image_height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Image Height"
+        },
+        "image_width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Image Width"
+        },
+        "original_name": {
+          "title": "Original Name",
+          "type": "string"
+        },
+        "preview_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Preview Url"
+        },
+        "size_bytes": {
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "original_name",
+        "size_bytes",
+        "status"
+      ],
+      "title": "AttachmentOut",
+      "type": "object"
+    },
+    "AuthorAccess": {
+      "description": "What a byline entry may do to the publication. Mirrors\npublications-service; see its app/schemas/common.py for the ladder.",
+      "enum": [
+        "credited",
+        "editor",
+        "owner"
+      ],
+      "title": "AuthorAccess",
+      "type": "string"
+    },
+    "AuthorStatus": {
+      "enum": [
+        "pending",
+        "accepted",
+        "declined"
+      ],
+      "title": "AuthorStatus",
+      "type": "string"
+    },
+    "AuthorSummary": {
+      "properties": {
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "family_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Family Name"
+        },
+        "given_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Given Name"
+        },
+        "middle_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Middle Name"
+        },
+        "profile_id": {
+          "format": "uuid",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "profile_image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile Image Url"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "username"
+      ],
+      "title": "AuthorSummary",
+      "type": "object"
+    },
+    "BackgroundColor": {
+      "description": "A collection's background: a solid colour or a two-stop gradient.\n\nGradient values carry a hyphen (`green-blue`), which is not a Python\nidentifier, so those members are named with an underscore and reachable by\nvalue (`BackgroundColor(\"green-blue\")`). The wire value is the hyphenated\none; nothing needs attribute access, since values arrive off the wire.",
+      "enum": [
+        "amber",
+        "amber-yellow",
+        "blue",
+        "blue-cyan",
+        "blue-purple",
+        "cyan",
+        "cyan-blue",
+        "emerald",
+        "emerald-teal",
+        "fuchsia",
+        "green",
+        "green-blue",
+        "green-teal",
+        "indigo",
+        "indigo-blue",
+        "lime",
+        "orange",
+        "orange-red",
+        "pink",
+        "pink-purple",
+        "pink-rose",
+        "purple",
+        "purple-indigo",
+        "purple-pink",
+        "red",
+        "red-orange",
+        "rose",
+        "rose-pink",
+        "sky",
+        "slate",
+        "teal",
+        "teal-cyan",
+        "violet",
+        "violet-purple",
+        "yellow",
+        "yellow-orange"
+      ],
+      "title": "BackgroundColor",
+      "type": "string"
+    },
+    "BodyFormat": {
+      "description": "What a face's text is: markdown, or a file published as itself.\nMirrors publications-service's `BodyFormat` (scripts/check-enum-parity.py).",
+      "enum": [
+        "markdown",
+        "pdf",
+        "docx",
+        "odt"
+      ],
+      "title": "BodyFormat",
+      "type": "string"
+    },
+    "BuyLinkOut": {
+      "properties": {
+        "medium": {
+          "enum": [
+            "digital",
+            "paperback",
+            "hardcover",
+            "audio"
+          ],
+          "title": "Medium",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "vendor": {
+          "title": "Vendor",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vendor",
+        "url",
+        "medium"
+      ],
+      "title": "BuyLinkOut",
+      "type": "object"
+    },
+    "CategorySimple": {
+      "description": "Lightweight category projection embedded in publication and work reads.\n`id` is the categories-service UUID; the BFF resolves `key` and the name on\nread. `key` is the /categories/<key> URL segment.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Key"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_en": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name En"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "CategorySimple",
+      "type": "object"
+    },
+    "CitationType": {
+      "enum": [
+        "article",
+        "book",
+        "chapter",
+        "conference",
+        "thesis",
+        "website",
+        "patent",
+        "report",
+        "dataset",
+        "software",
+        "other"
+      ],
+      "title": "CitationType",
+      "type": "string"
+    },
+    "CollectionCreate": {
+      "properties": {
+        "background_color": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BackgroundColor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 25,
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "collection_type": {
+          "$ref": "#/components/schemas/CollectionType",
+          "default": "collection"
+        },
+        "cover_url": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Url"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "icon_name": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/IconName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "import_key": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Stable identifier set by an importer so a re-run finds this collection instead of creating a second one. Unique per creator; immutable once set.",
+          "title": "Import Key"
+        },
+        "primary_language": {
+          "maxLength": 10,
+          "minLength": 2,
+          "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+          "title": "Primary Language",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "visibility": {
+          "default": "public",
+          "enum": [
+            "public",
+            "authenticated",
+            "connections",
+            "owner"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "primary_language",
+        "title"
+      ],
+      "title": "CollectionCreate",
+      "type": "object"
+    },
+    "CollectionDetail": {
+      "properties": {
+        "background_color": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BackgroundColor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "categories": {
+          "description": "Resolved names for `category_ids`. Empty if unresolved.",
+          "items": {
+            "$ref": "#/components/schemas/CategorySimple"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "category_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "collection_type": {
+          "$ref": "#/components/schemas/CollectionType",
+          "default": "collection"
+        },
+        "comments_count": {
+          "default": 0,
+          "title": "Comments Count",
+          "type": "integer"
+        },
+        "content_language": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContentLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cover_url": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Url"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "creator": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Resolved owner card. Null if profile-service was unreachable."
+        },
+        "creator_id": {
+          "format": "uuid",
+          "title": "Creator Id",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "icon_name": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/IconName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "import_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Import Key"
+        },
+        "index_held": {
+          "default": false,
+          "title": "Index Held",
+          "type": "boolean"
+        },
+        "is_featured": {
+          "default": false,
+          "title": "Is Featured",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/CollectionItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "items_count": {
+          "default": 0,
+          "title": "Items Count",
+          "type": "integer"
+        },
+        "primary_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Primary Language"
+        },
+        "title": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "views_count": {
+          "default": 0,
+          "title": "Views Count",
+          "type": "integer"
+        },
+        "visibility": {
+          "default": "public",
+          "enum": [
+            "public",
+            "authenticated",
+            "connections",
+            "owner"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "id",
+        "creator_id",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "CollectionDetail",
+      "type": "object"
+    },
+    "CollectionImportRef": {
+      "description": "What an importer needs to decide create-or-update: the collection's\nidentity and state, not its contents.",
+      "properties": {
+        "collection_type": {
+          "$ref": "#/components/schemas/CollectionType"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "import_key": {
+          "title": "Import Key",
+          "type": "string"
+        },
+        "items_count": {
+          "default": 0,
+          "title": "Items Count",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "visibility": {
+          "enum": [
+            "public",
+            "authenticated",
+            "connections",
+            "owner"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "import_key",
+        "title",
+        "collection_type",
+        "visibility",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "CollectionImportRef",
+      "type": "object"
+    },
+    "CollectionItem": {
+      "description": "One entry, in `position` order.\n\n`title` is resolved from the owning service. It is null for an entity that\nservice no longer has -- a removed publication leaves the item in place\nrather than silently vanishing from someone's reading list.",
+      "properties": {
+        "entity_id": {
+          "format": "uuid",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "entity_type": {
+          "const": "publication",
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        },
+        "position": {
+          "title": "Position",
+          "type": "integer"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        }
+      },
+      "required": [
+        "entity_type",
+        "entity_id",
+        "position"
+      ],
+      "title": "CollectionItem",
+      "type": "object"
+    },
+    "CollectionItemPage": {
+      "description": "A page of one collection's *contents*.\n\nNot to be confused with `CollectionPage`, whose `items` are collections. The\ncollision is inherited from the wire -- `items` is the envelope's key on\nevery list -- so the two page types are named for what they hold.\n\n`CollectionDetail.items` carries only a first page since 2026-08-15; this is\nhow a reader reaches the rest of a long reading list. `items_count` on the\ndetail body is how they know there is more.",
+      "properties": {
+        "has_more": {
+          "default": false,
+          "description": "Whether at least one more item follows this page.",
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/CollectionItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "limit": {
+          "description": "Page size actually applied (post-clamp).",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Opaque cursor for the next page; null at the end. Pass it back as `cursor`. Do not parse it.",
+          "title": "Next Cursor"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Offset actually applied. Null on a cursor-only surface.",
+          "title": "Offset"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rows matching the current filters, ignoring limit/offset. Null means not counted (feeds), never zero.",
+          "title": "Total"
+        }
+      },
+      "required": [
+        "limit",
+        "items"
+      ],
+      "title": "CollectionItemPage",
+      "type": "object"
+    },
+    "CollectionPage": {
+      "properties": {
+        "has_more": {
+          "default": false,
+          "description": "Whether at least one more item follows this page.",
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/CollectionSummary"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "limit": {
+          "description": "Page size actually applied (post-clamp).",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Opaque cursor for the next page; null at the end. Pass it back as `cursor`. Do not parse it.",
+          "title": "Next Cursor"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Offset actually applied. Null on a cursor-only surface.",
+          "title": "Offset"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rows matching the current filters, ignoring limit/offset. Null means not counted (feeds), never zero.",
+          "title": "Total"
+        }
+      },
+      "required": [
+        "limit",
+        "items"
+      ],
+      "title": "CollectionPage",
+      "type": "object"
+    },
+    "CollectionSummary": {
+      "description": "List shape. No items -- surfaces size off `items_count`.",
+      "properties": {
+        "background_color": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BackgroundColor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "categories": {
+          "description": "Resolved names for `category_ids`. Empty if unresolved.",
+          "items": {
+            "$ref": "#/components/schemas/CategorySimple"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "category_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "collection_type": {
+          "$ref": "#/components/schemas/CollectionType",
+          "default": "collection"
+        },
+        "content_language": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContentLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cover_url": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Url"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "creator": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Resolved owner card. Null if profile-service was unreachable."
+        },
+        "creator_id": {
+          "format": "uuid",
+          "title": "Creator Id",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "icon_name": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/IconName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "import_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Import Key"
+        },
+        "index_held": {
+          "default": false,
+          "title": "Index Held",
+          "type": "boolean"
+        },
+        "is_featured": {
+          "default": false,
+          "title": "Is Featured",
+          "type": "boolean"
+        },
+        "items_count": {
+          "default": 0,
+          "title": "Items Count",
+          "type": "integer"
+        },
+        "primary_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Primary Language"
+        },
+        "title": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "views_count": {
+          "default": 0,
+          "title": "Views Count",
+          "type": "integer"
+        },
+        "visibility": {
+          "default": "public",
+          "enum": [
+            "public",
+            "authenticated",
+            "connections",
+            "owner"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "id",
+        "creator_id",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "CollectionSummary",
+      "type": "object"
+    },
+    "CollectionType": {
+      "enum": [
+        "collection",
+        "course",
+        "recommendation"
+      ],
+      "title": "CollectionType",
+      "type": "string"
+    },
+    "CollectionUpdate": {
+      "description": "Every field optional -- an omitted field is left alone. Sending\n`category_ids` replaces the whole set; sending `[]` clears it.",
+      "properties": {
+        "background_color": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BackgroundColor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 25,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Category Ids"
+        },
+        "collection_type": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/CollectionType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cover_url": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Url"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "icon_name": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/IconName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "primary_language": {
+          "anyOf": [
+            {
+              "maxLength": 10,
+              "minLength": 2,
+              "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Primary Language"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "enum": [
+                "public",
+                "authenticated",
+                "connections",
+                "owner"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Visibility"
+        }
+      },
+      "title": "CollectionUpdate",
+      "type": "object"
+    },
+    "ContentLanguage": {
+      "description": "Relayed verbatim from the domain service.\n\nThe contract is `docs/architecture/content-language.md`. The BFF neither\ncomputes nor reshapes any member of it: `served`, `available` and `primary`\nare the domain service's answers, and the frontend reads its canonical, its\nhreflang set and its redirect decision from them. Recomputing any of it here\nwould fork the resolver, and the two copies would disagree the first time a\nfield fell back.",
+      "properties": {
+        "available": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Available",
+          "type": "array"
+        },
+        "fields": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "object"
+        },
+        "primary": {
+          "title": "Primary",
+          "type": "string"
+        },
+        "requested": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Requested"
+        },
+        "served": {
+          "title": "Served",
+          "type": "string"
+        }
+      },
+      "required": [
+        "served",
+        "primary",
+        "available"
+      ],
+      "title": "ContentLanguage",
+      "type": "object"
+    },
+    "ContentsOut": {
+      "properties": {
+        "expression_id": {
+          "format": "uuid",
+          "title": "Expression Id",
+          "type": "string"
+        },
+        "first_reading_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Reading Number"
+        },
+        "pages": {
+          "default": 0,
+          "title": "Pages",
+          "type": "integer"
+        },
+        "reading_units": {
+          "title": "Reading Units",
+          "type": "integer"
+        },
+        "tree": {
+          "items": {
+            "$ref": "#/components/schemas/DivisionNodeOut"
+          },
+          "title": "Tree",
+          "type": "array"
+        },
+        "typography": {
+          "enum": [
+            "prose",
+            "document"
+          ],
+          "title": "Typography",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expression_id",
+        "typography",
+        "reading_units"
+      ],
+      "title": "ContentsOut",
+      "type": "object"
+    },
+    "ContributorRole": {
+      "description": "How a byline entry contributed -- the contribution axis, kept apart\nfrom `AuthorAccess` (rights). Mirrors publications-service; held to it by\nscripts/check-enum-parity.py. The frontend renders `author` in the run-in\nbyline and every other value as a credit after it (\"Compiled by ...\").",
+      "enum": [
+        "author",
+        "advisor",
+        "editor",
+        "translator",
+        "curator",
+        "lecturer"
+      ],
+      "title": "ContributorRole",
+      "type": "string"
+    },
+    "DivisionCreate": {
+      "properties": {
+        "first_line": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Line"
+        },
+        "index": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Index"
+        },
+        "kind": {
+          "enum": [
+            "volume",
+            "book",
+            "part",
+            "chapter",
+            "section",
+            "article",
+            "poem",
+            "story",
+            "letter",
+            "act",
+            "scene",
+            "front_matter",
+            "back_matter"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Label",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ref"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "DivisionCreate",
+      "type": "object"
+    },
+    "DivisionEditOut": {
+      "description": "One division as the editor holds it: the row with its raw body,\npage or not. `ReadingPageOut` is the reader's shape; this is the\nthing being edited.",
+      "properties": {
+        "body_md": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Md"
+        },
+        "expression_id": {
+          "format": "uuid",
+          "title": "Expression Id",
+          "type": "string"
+        },
+        "first_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Line"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "volume",
+            "book",
+            "part",
+            "chapter",
+            "section",
+            "article",
+            "poem",
+            "story",
+            "letter",
+            "act",
+            "scene",
+            "front_matter",
+            "back_matter"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "ordinal": {
+          "title": "Ordinal",
+          "type": "integer"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        },
+        "reading_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reading Number"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ref"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "expression_id",
+        "kind",
+        "label",
+        "ordinal",
+        "updated_at"
+      ],
+      "title": "DivisionEditOut",
+      "type": "object"
+    },
+    "DivisionMove": {
+      "description": "Under `parent_id` (null for the root level) at `index` among the\nsiblings there (omitted means last).",
+      "properties": {
+        "index": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Index"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        }
+      },
+      "title": "DivisionMove",
+      "type": "object"
+    },
+    "DivisionNodeOut": {
+      "description": "One node of the contents tree. Recursive; no bodies.",
+      "properties": {
+        "children": {
+          "items": {
+            "$ref": "#/components/schemas/DivisionNodeOut"
+          },
+          "title": "Children",
+          "type": "array"
+        },
+        "first_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Line"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "volume",
+            "book",
+            "part",
+            "chapter",
+            "section",
+            "article",
+            "poem",
+            "story",
+            "letter",
+            "act",
+            "scene",
+            "front_matter",
+            "back_matter"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "ordinal": {
+          "title": "Ordinal",
+          "type": "integer"
+        },
+        "page_reading_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Page Reading Number"
+        },
+        "reading_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reading Number"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ref"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "ordinal"
+      ],
+      "title": "DivisionNodeOut",
+      "type": "object"
+    },
+    "DivisionUpdate": {
+      "description": "Only what is sent changes. `body_md` empty (or null) takes the body\naway: the node becomes navigation, and on a published book its address\nis retired rather than reissued.",
+      "properties": {
+        "body_md": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Md"
+        },
+        "first_line": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Line"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "volume",
+                "book",
+                "part",
+                "chapter",
+                "section",
+                "article",
+                "poem",
+                "story",
+                "letter",
+                "act",
+                "scene",
+                "front_matter",
+                "back_matter"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Kind"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Label"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ref"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        }
+      },
+      "title": "DivisionUpdate",
+      "type": "object"
+    },
+    "ExpressionCreditOut": {
+      "properties": {
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile_id": {
+          "format": "uuid",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "translator",
+            "editor",
+            "illustrator",
+            "collector"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "role"
+      ],
+      "title": "ExpressionCreditOut",
+      "type": "object"
+    },
+    "ExpressionOut": {
+      "description": "One expression as the work read carries it: a translation, an edition.",
+      "properties": {
+        "buy_links": {
+          "items": {
+            "$ref": "#/components/schemas/BuyLinkOut"
+          },
+          "title": "Buy Links",
+          "type": "array"
+        },
+        "cover_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Url"
+        },
+        "credits": {
+          "items": {
+            "$ref": "#/components/schemas/ExpressionCreditOut"
+          },
+          "title": "Credits",
+          "type": "array"
+        },
+        "hosted": {
+          "title": "Hosted",
+          "type": "boolean"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "isbn13": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Isbn13"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "pdf_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pdf Attachment Id"
+        },
+        "publication_id": {
+          "format": "uuid",
+          "title": "Publication Id",
+          "type": "string"
+        },
+        "publisher": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher"
+        },
+        "rights": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/RightsOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Url"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subtitle"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "typography": {
+          "enum": [
+            "prose",
+            "document"
+          ],
+          "title": "Typography",
+          "type": "string"
+        },
+        "untitled": {
+          "default": false,
+          "title": "Untitled",
+          "type": "boolean"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "required": [
+        "id",
+        "publication_id",
+        "label",
+        "language",
+        "source_name",
+        "typography",
+        "hosted"
+      ],
+      "title": "ExpressionOut",
+      "type": "object"
+    },
+    "HTTPValidationError": {
+      "properties": {
+        "detail": {
+          "items": {
+            "$ref": "#/components/schemas/ValidationError"
+          },
+          "title": "Detail",
+          "type": "array"
+        }
+      },
+      "title": "HTTPValidationError",
+      "type": "object"
+    },
+    "IconName": {
+      "description": "A Lucide icon name a collection may display.",
+      "enum": [
+        "Archive",
+        "Atom",
+        "Award",
+        "Book",
+        "BookMarked",
+        "BookOpen",
+        "Bookmark",
+        "Box",
+        "Brain",
+        "Briefcase",
+        "Circle",
+        "Code",
+        "Compass",
+        "Database",
+        "FileText",
+        "FlaskConical",
+        "FolderOpen",
+        "FolderTree",
+        "GitBranch",
+        "Globe",
+        "GraduationCap",
+        "Grid3x3",
+        "Hexagon",
+        "Layers",
+        "Library",
+        "Lightbulb",
+        "Map",
+        "Medal",
+        "Microscope",
+        "Notebook",
+        "Package",
+        "Pentagon",
+        "Rocket",
+        "School",
+        "Sparkles",
+        "Square",
+        "Star",
+        "Target",
+        "Triangle",
+        "Trophy",
+        "University",
+        "Zap"
+      ],
+      "title": "IconName",
+      "type": "string"
+    },
+    "ItemIn": {
+      "properties": {
+        "entity_id": {
+          "format": "uuid",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "entity_type": {
+          "const": "publication",
+          "default": "publication",
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Position"
+        }
+      },
+      "required": [
+        "entity_id"
+      ],
+      "title": "ItemIn",
+      "type": "object"
+    },
+    "LanguageProficiency": {
+      "description": "A language the person says they speak, and how well.\n\n**`code` is what makes this data rather than a string.** The field shipped\nwith `name` only -- free text, so the stored values are \"English\", \"French\",\n\"German\", \"Russian\": no code, nothing to match a search filter against,\nnothing to render in another interface language, and no way to tell\n\"Chinese\" from \"Mandarin\" from a typo. `code` is the fix, and `name` stays\nbeside it so the rows written before it still render.\n\n**Validated against the whole catalogue, not the authorable set.** This is a\nclaim about a *person*, not content they authored: a researcher who speaks\nHungarian should be able to say so on a site that does not offer Hungarian\nas a writing language. `is_authorable_language` is for the languages someone\nmay write in; this is not one of those fields.\n\nOptional because the rows already in the database have no code and must keep\nloading. A write that omits it is accepted and simply carries less.",
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Code"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "proficiency": {
+          "$ref": "#/components/schemas/ProficiencyLevel"
+        },
+        "translations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Translations"
+        }
+      },
+      "required": [
+        "name",
+        "proficiency"
+      ],
+      "title": "LanguageProficiency",
+      "type": "object"
+    },
+    "License": {
+      "enum": [
+        "all_rights_reserved",
+        "cc_by",
+        "cc_by_sa",
+        "cc_by_nc",
+        "cc_by_nc_sa",
+        "cc0",
+        "public_domain"
+      ],
+      "title": "License",
+      "type": "string"
+    },
+    "MarkdownViewState": {
+      "description": "A file face's converted markdown: on the page, kept off it, or absent.\nMirrors publications-service's `MarkdownViewState`.",
+      "enum": [
+        "shown",
+        "hidden",
+        "none"
+      ],
+      "title": "MarkdownViewState",
+      "type": "string"
+    },
+    "MentionTarget": {
+      "description": "One entry of the `mentions` map: the profile a `@handle` in the body names.\n\n`username` is the profile's **current** handle, which is not necessarily the\none the body was written with -- profile-service resolves old handles through\nUsernameHistory, so a rename heals every mention of that profile rather than\nstranding it. The renderer links and labels the chip from this field.",
+      "properties": {
+        "profile_id": {
+          "format": "uuid",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "username"
+      ],
+      "title": "MentionTarget",
+      "type": "object"
+    },
+    "MessageResponse": {
+      "description": "Simple `{detail: ...}` body returned by publication/draft deletes.",
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "detail"
+      ],
+      "title": "MessageResponse",
+      "type": "object"
+    },
+    "OrganizationCard": {
+      "description": "The organization a publication was published under, resolved from\n`affiliated_org_id` by the BFF. The five fields a top bar and a link need\n-- deliberately not `OrganizationSummary`, whose member counts and claim\nstate are the org page's business, not a publication's.",
+      "properties": {
+        "avatar_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avatar Url"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "orgname": {
+          "title": "Orgname",
+          "type": "string"
+        },
+        "short_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Short Name"
+        }
+      },
+      "required": [
+        "id",
+        "orgname",
+        "display_name"
+      ],
+      "title": "OrganizationCard",
+      "type": "object"
+    },
+    "PositionItem": {
+      "properties": {
+        "institution": {
+          "title": "Institution",
+          "type": "string"
+        },
+        "position": {
+          "title": "Position",
+          "type": "string"
+        },
+        "translations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Translations"
+        }
+      },
+      "required": [
+        "position",
+        "institution"
+      ],
+      "title": "PositionItem",
+      "type": "object"
+    },
+    "PrimaryFormat": {
+      "description": "Which view of a file face the work page leads with: the file (default),\nor the markdown with the file as its PDF view. Mirrors publications-service's\n`PrimaryFormat`.",
+      "enum": [
+        "file",
+        "markdown"
+      ],
+      "title": "PrimaryFormat",
+      "type": "string"
+    },
+    "ProficiencyLevel": {
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced",
+        "fluent",
+        "native"
+      ],
+      "title": "ProficiencyLevel",
+      "type": "string"
+    },
+    "ProfileMe": {
+      "description": "Owner view — every field, every visibility flag.",
+      "properties": {
+        "about": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "About"
+        },
+        "affiliation_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliation Text"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "current_positions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/PositionItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Current Positions"
+        },
+        "date_of_birth": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Date Of Birth"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "family_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Family Name"
+        },
+        "given_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Given Name"
+        },
+        "headline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Headline"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "interests": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Interests",
+          "type": "array"
+        },
+        "languages": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/LanguageProficiency"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Languages"
+        },
+        "middle_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Middle Name"
+        },
+        "onboarding_completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Onboarding Completed At"
+        },
+        "place_of_birth": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place Of Birth"
+        },
+        "places_of_residence": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/ResidenceItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Places Of Residence"
+        },
+        "primary_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Primary Language"
+        },
+        "profile_image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile Image Url"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Region"
+        },
+        "researcher_identifiers": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ResearcherIdentifiersOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/components/schemas/ProfileVisibility"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "visibility",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "ProfileMe",
+      "type": "object"
+    },
+    "ProfilePublic": {
+      "description": "Public view — gated by is_public and per-field toggles.",
+      "properties": {
+        "about": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "About"
+        },
+        "affiliation_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliation Text"
+        },
+        "can_message": {
+          "default": false,
+          "title": "Can Message",
+          "type": "boolean"
+        },
+        "content_language": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContentLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Created At"
+        },
+        "current_positions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/PositionItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Current Positions"
+        },
+        "date_of_birth": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Date Of Birth"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "family_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Family Name"
+        },
+        "given_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Given Name"
+        },
+        "headline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Headline"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "index_held": {
+          "default": false,
+          "title": "Index Held",
+          "type": "boolean"
+        },
+        "interest_categories": {
+          "items": {
+            "$ref": "#/components/schemas/CategorySimple"
+          },
+          "title": "Interest Categories",
+          "type": "array"
+        },
+        "interests": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Interests",
+          "type": "array"
+        },
+        "languages": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/LanguageProficiency"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Languages"
+        },
+        "middle_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Middle Name"
+        },
+        "place_of_birth": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place Of Birth"
+        },
+        "places_of_residence": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/ResidenceItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Places Of Residence"
+        },
+        "primary_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Primary Language"
+        },
+        "profile_image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile Image Url"
+        },
+        "researcher_identifiers": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ResearcherIdentifiersOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stats": {
+          "$ref": "#/components/schemas/ProfileStats"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Updated At"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "username"
+      ],
+      "title": "ProfilePublic",
+      "type": "object"
+    },
+    "ProfileStats": {
+      "description": "Counts and tab-presence for the profile header (#1077).\n\nAggregated at the BFF per request from four services, never stored. Each\nfield is None when its leg failed, and the frontend treats None as\n\"unknown\" -- it keeps the tab and drops the number -- never as zero or\nempty. `followers_count` and `works_count` are the same for every viewer;\n`has_cv` and `has_timetable` are resolved at the caller's real access\nlevel, so they say whether *this* viewer would find anything on the tab.",
+      "properties": {
+        "followers_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Followers Count"
+        },
+        "has_cv": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Cv"
+        },
+        "has_timetable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Timetable"
+        },
+        "works_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Works Count"
+        }
+      },
+      "title": "ProfileStats",
+      "type": "object"
+    },
+    "ProfileUpdate": {
+      "description": "Owner PATCH /profiles/me. All fields optional.",
+      "properties": {
+        "about": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "About"
+        },
+        "affiliation_text": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliation Text"
+        },
+        "current_positions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/PositionItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Current Positions"
+        },
+        "date_of_birth": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Date Of Birth"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "family_name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Family Name"
+        },
+        "given_name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Given Name"
+        },
+        "headline": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Headline"
+        },
+        "languages": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/LanguageProficiency"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Languages"
+        },
+        "middle_name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Middle Name"
+        },
+        "place_of_birth": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place Of Birth"
+        },
+        "places_of_residence": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/ResidenceItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Places Of Residence"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "maxLength": 2,
+              "minLength": 2,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Region"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 3,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Username"
+        }
+      },
+      "title": "ProfileUpdate",
+      "type": "object"
+    },
+    "ProfileVisibility": {
+      "properties": {
+        "ai_assistant_enabled": {
+          "default": true,
+          "title": "Ai Assistant Enabled",
+          "type": "boolean"
+        },
+        "contacts_visibility": {
+          "$ref": "#/components/schemas/VisibilityLevel",
+          "default": "owner"
+        },
+        "cv_visibility": {
+          "$ref": "#/components/schemas/VisibilityLevel",
+          "default": "public"
+        },
+        "is_public": {
+          "default": false,
+          "title": "Is Public",
+          "type": "boolean"
+        },
+        "show_date_of_birth": {
+          "default": false,
+          "title": "Show Date Of Birth",
+          "type": "boolean"
+        },
+        "show_place_of_birth": {
+          "default": false,
+          "title": "Show Place Of Birth",
+          "type": "boolean"
+        },
+        "show_places_of_residence": {
+          "default": false,
+          "title": "Show Places Of Residence",
+          "type": "boolean"
+        }
+      },
+      "title": "ProfileVisibility",
+      "type": "object"
+    },
+    "PublicationAuthorInvite": {
+      "description": "One name to put on the byline, as a client asks for it.\n\nDeliberately narrower than publications-service's shape: that one also\ncarries `account_less`, the assertion that the invitee has no account and\nso is credited without an answer (#1003). A client must not be able to say\nthat -- it would be instant attribution without consent, the impersonation\nprimitive the pending state exists to prevent. This tier decides it, off\nprofile-service's `has_account`, and stamps it on the forwarded body\n(`stamp_account_less`). Pydantic drops an unknown field a client sends.",
+      "properties": {
+        "access": {
+          "$ref": "#/components/schemas/AuthorAccess",
+          "default": "credited"
+        },
+        "profile_id": {
+          "format": "uuid",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/components/schemas/ContributorRole",
+          "default": "author"
+        }
+      },
+      "required": [
+        "profile_id"
+      ],
+      "title": "PublicationAuthorInvite",
+      "type": "object"
+    },
+    "PublicationAuthorOut": {
+      "description": "One name on the byline, with the profile card resolved.\n\n`author` is null when profile-service could not be reached -- embedding is\nbest-effort, and a byline entry with an unresolved card still tells the\nreader someone is there.",
+      "properties": {
+        "access": {
+          "$ref": "#/components/schemas/AuthorAccess"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "invited_at": {
+          "format": "date-time",
+          "title": "Invited At",
+          "type": "string"
+        },
+        "invited_by": {
+          "format": "uuid",
+          "title": "Invited By",
+          "type": "string"
+        },
+        "position": {
+          "title": "Position",
+          "type": "integer"
+        },
+        "profile_id": {
+          "format": "uuid",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "responded_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responded At"
+        },
+        "role": {
+          "$ref": "#/components/schemas/ContributorRole",
+          "default": "author"
+        },
+        "status": {
+          "$ref": "#/components/schemas/AuthorStatus"
+        }
+      },
+      "required": [
+        "profile_id",
+        "position",
+        "access",
+        "status",
+        "invited_by",
+        "invited_at"
+      ],
+      "title": "PublicationAuthorOut",
+      "type": "object"
+    },
+    "PublicationCreate": {
+      "properties": {
+        "affiliated_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliated Org Id"
+        },
+        "ai_usage": {
+          "$ref": "#/components/schemas/AIUsage",
+          "default": "none"
+        },
+        "attachment_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attachment Ids"
+        },
+        "authors": {
+          "items": {
+            "$ref": "#/components/schemas/PublicationAuthorInvite"
+          },
+          "maxItems": 25,
+          "title": "Authors",
+          "type": "array"
+        },
+        "body_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Attachment Id"
+        },
+        "body_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BodyFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 25,
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "content": {
+          "default": "",
+          "title": "Content",
+          "type": "string"
+        },
+        "cover_image_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Image Id"
+        },
+        "creator_role": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContributorRole"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "import_key": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Import Key"
+        },
+        "is_draft": {
+          "default": false,
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "en",
+          "title": "Language"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/License"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "markdown_view_state": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/MarkdownViewState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_author": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Author"
+        },
+        "original_link": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Link"
+        },
+        "owner_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Owner Org Id"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place"
+        },
+        "primary_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PrimaryFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/Reference"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "References"
+        },
+        "sponsorships": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sponsorships"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Tags",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/components/schemas/PublicationType"
+        },
+        "visibility": {
+          "$ref": "#/components/schemas/Visibility",
+          "default": "public"
+        }
+      },
+      "required": [
+        "title",
+        "type"
+      ],
+      "title": "PublicationCreate",
+      "type": "object"
+    },
+    "PublicationImportRef": {
+      "description": "What an importer needs to decide create-or-update, and nothing else.\n\nMirrors publications-service's schema of the same name. Deliberately not\n`PublicationOut`: this is the one owner-scoped read that reports\nsoft-deleted rows, and a removed publication is content its author withdrew,\nso the response carries the row's identity and state rather than its body.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "import_key": {
+          "title": "Import Key",
+          "type": "string"
+        },
+        "is_draft": {
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "removed": {
+          "title": "Removed",
+          "type": "boolean"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "import_key",
+        "title",
+        "is_draft",
+        "removed",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "PublicationImportRef",
+      "type": "object"
+    },
+    "PublicationOut": {
+      "properties": {
+        "affiliated_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliated Org Id"
+        },
+        "ai_usage": {
+          "$ref": "#/components/schemas/AIUsage",
+          "default": "none"
+        },
+        "attachment_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Attachment Ids",
+          "type": "array"
+        },
+        "attachments": {
+          "items": {
+            "$ref": "#/components/schemas/AttachmentOut"
+          },
+          "title": "Attachments",
+          "type": "array"
+        },
+        "attribution": {
+          "anyOf": [
+            {
+              "enum": [
+                "authored",
+                "anonymous",
+                "traditional",
+                "attributed",
+                "corporate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attribution"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "author_id": {
+          "format": "uuid",
+          "title": "Author Id",
+          "type": "string"
+        },
+        "authors": {
+          "items": {
+            "$ref": "#/components/schemas/PublicationAuthorOut"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "body_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Attachment Id"
+        },
+        "body_format": {
+          "$ref": "#/components/schemas/BodyFormat",
+          "default": "markdown"
+        },
+        "bookmarks_count": {
+          "default": 0,
+          "title": "Bookmarks Count",
+          "type": "integer"
+        },
+        "categories": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/CategorySimple"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Categories"
+        },
+        "category_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "comments_count": {
+          "default": 0,
+          "title": "Comments Count",
+          "type": "integer"
+        },
+        "content": {
+          "default": "",
+          "title": "Content",
+          "type": "string"
+        },
+        "content_language": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContentLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Source"
+        },
+        "cover_image_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Image Id"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "downvotes_count": {
+          "default": 0,
+          "title": "Downvotes Count",
+          "type": "integer"
+        },
+        "expressions": {
+          "items": {
+            "$ref": "#/components/schemas/ExpressionOut"
+          },
+          "title": "Expressions",
+          "type": "array"
+        },
+        "first_published": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Published"
+        },
+        "frozen_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Frozen At"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "identifiers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Identifiers",
+          "type": "object"
+        },
+        "import_key": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Import Key"
+        },
+        "index_held": {
+          "default": false,
+          "title": "Index Held",
+          "type": "boolean"
+        },
+        "is_draft": {
+          "default": false,
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "en",
+          "title": "Language"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/License"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "markdown_view_state": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/MarkdownViewState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mentions": {
+          "additionalProperties": {
+            "$ref": "#/components/schemas/MentionTarget"
+          },
+          "default": {},
+          "title": "Mentions",
+          "type": "object"
+        },
+        "organizations": {
+          "items": {
+            "$ref": "#/components/schemas/OrganizationCard"
+          },
+          "title": "Organizations",
+          "type": "array"
+        },
+        "original_author": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Author"
+        },
+        "original_link": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Link"
+        },
+        "owner_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Owner Org Id"
+        },
+        "owner_organization": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/OrganizationCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "place": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place"
+        },
+        "primary_expression_by_language": {
+          "additionalProperties": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Primary Expression By Language",
+          "type": "object"
+        },
+        "primary_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PrimaryFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "public_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Public Id"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Published At"
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/Reference"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "References"
+        },
+        "retraction": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/RetractionOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sponsorships": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sponsorships"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Tags",
+          "type": "array"
+        },
+        "tikz_render_urls": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TikzRender"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tikz Render Urls"
+        },
+        "title": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/components/schemas/PublicationType"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "upvotes_count": {
+          "default": 0,
+          "title": "Upvotes Count",
+          "type": "integer"
+        },
+        "viewer_access": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorAccess"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "views_count": {
+          "default": 0,
+          "title": "Views Count",
+          "type": "integer"
+        },
+        "visibility": {
+          "$ref": "#/components/schemas/Visibility",
+          "default": "public"
+        },
+        "work": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PublicationWorkBlock"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "written": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Written"
+        }
+      },
+      "required": [
+        "title",
+        "type",
+        "id",
+        "author_id",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "PublicationOut",
+      "type": "object"
+    },
+    "PublicationPage": {
+      "description": "A page of publications in the public envelope\n(docs/architecture/pagination.md). Author and category cards are hydrated\ninto each item by the BFF before this goes out.",
+      "properties": {
+        "has_more": {
+          "default": false,
+          "description": "Whether at least one more item follows this page.",
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/PublicationOut"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "limit": {
+          "description": "Page size actually applied (post-clamp).",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Opaque cursor for the next page; null at the end. Pass it back as `cursor`. Do not parse it.",
+          "title": "Next Cursor"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Offset actually applied. Null on a cursor-only surface.",
+          "title": "Offset"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rows matching the current filters, ignoring limit/offset. Null means not counted (feeds), never zero.",
+          "title": "Total"
+        }
+      },
+      "required": [
+        "limit",
+        "items"
+      ],
+      "title": "PublicationPage",
+      "type": "object"
+    },
+    "PublicationType": {
+      "description": "Every type libretimes.io may create -- living content and, since\n2026-09-14, the five citable record types.\n\nThis was deliberately a subset excluding `original_research`, `letter`,\n`review`, `report` and `thesis`, because journal-bff was the door for\nthem. The journal is parked (ONE-PRODUCT Phase 0) and its return is a\nvenue over the same rows, so the record types are creatable here with\nthe semantics publications-service enforces by type alone: frozen on\npublish, numbered, retracted not deleted, corrected by a new version\n(WORKS-UNIFICATION decision 15). The chooser says so before Publish.\n\nSee docs/architecture/content-types.md.",
+      "enum": [
+        "lecture",
+        "seminar",
+        "tutorial",
+        "lab",
+        "talk",
+        "theory",
+        "problems",
+        "cheatsheet",
+        "reference",
+        "notes",
+        "essay",
+        "sci_pop",
+        "other",
+        "original_research",
+        "letter",
+        "review",
+        "report",
+        "thesis",
+        "book"
+      ],
+      "title": "PublicationType",
+      "type": "string"
+    },
+    "PublicationUpdate": {
+      "properties": {
+        "affiliated_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliated Org Id"
+        },
+        "ai_usage": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AIUsage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attachment_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attachment Ids"
+        },
+        "body_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Attachment Id"
+        },
+        "body_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BodyFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Category Ids"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content"
+        },
+        "cover_image_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Image Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "is_draft": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Draft"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Language"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/License"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "markdown_view_state": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/MarkdownViewState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "place": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place"
+        },
+        "primary_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PrimaryFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/Reference"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "References"
+        },
+        "sponsorships": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sponsorships"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tags"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PublicationType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/Visibility"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "PublicationUpdate",
+      "type": "object"
+    },
+    "PublicationWorkBlock": {
+      "description": "What the publication page shows of its work row. A subset of `Work`\non purpose: the page already renders the text, byline and categories.",
+      "properties": {
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Arxiv Id"
+        },
+        "cited_by_count": {
+          "default": 0,
+          "title": "Cited By Count",
+          "type": "integer"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Doi"
+        },
+        "downvotes_count": {
+          "default": 0,
+          "title": "Downvotes Count",
+          "type": "integer"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "local_signal": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Local Signal"
+        },
+        "provenance": {
+          "title": "Provenance",
+          "type": "string"
+        },
+        "upvotes_count": {
+          "default": 0,
+          "title": "Upvotes Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "provenance"
+      ],
+      "title": "PublicationWorkBlock",
+      "type": "object"
+    },
+    "Reference": {
+      "description": "A bibliographic reference on a publication. CSL-aligned snapshot; may link\nto a known work or a library citation. Mirrors publications-service.",
+      "properties": {
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Arxiv Id"
+        },
+        "authors": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/ReferenceAuthor"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Authors"
+        },
+        "citation_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Citation Id"
+        },
+        "citation_type": {
+          "$ref": "#/components/schemas/CitationType",
+          "default": "article"
+        },
+        "container_title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Container Title"
+        },
+        "day": {
+          "anyOf": [
+            {
+              "maximum": 31.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Day"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Doi"
+        },
+        "edition": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Edition"
+        },
+        "isbn": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Isbn"
+        },
+        "issn": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issn"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issue"
+        },
+        "month": {
+          "anyOf": [
+            {
+              "maximum": 12.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Month"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pages"
+        },
+        "pmid": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pmid"
+        },
+        "publisher": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher"
+        },
+        "publisher_place": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher Place"
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Volume"
+        },
+        "work_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Work Id"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100.0,
+              "minimum": 1000.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "Reference",
+      "type": "object"
+    },
+    "ReferenceAuthor": {
+      "properties": {
+        "family": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Family"
+        },
+        "given": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Given"
+        },
+        "literal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Literal"
+        },
+        "suffix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Suffix"
+        }
+      },
+      "title": "ReferenceAuthor",
+      "type": "object"
+    },
+    "ReorderRequest": {
+      "description": "The full ordered list of entity ids. `position` becomes the index here.",
+      "properties": {
+        "entity_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "title": "Entity Ids",
+          "type": "array"
+        },
+        "entity_type": {
+          "const": "publication",
+          "default": "publication",
+          "title": "Entity Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_ids"
+      ],
+      "title": "ReorderRequest",
+      "type": "object"
+    },
+    "ResearcherIdentifiersOut": {
+      "properties": {
+        "orcid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Orcid"
+        },
+        "researcher_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Researcher Id"
+        },
+        "scopus_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Scopus Id"
+        }
+      },
+      "title": "ResearcherIdentifiersOut",
+      "type": "object"
+    },
+    "ResidenceItem": {
+      "properties": {
+        "location": {
+          "title": "Location",
+          "type": "string"
+        },
+        "translations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Translations"
+        }
+      },
+      "required": [
+        "location"
+      ],
+      "title": "ResidenceItem",
+      "type": "object"
+    },
+    "RetractionOut": {
+      "description": "The withdrawal notice publications-service carries on every read of a\nretracted record (its `RetractionOut`). A retracted record stays readable\nso citations do not dangle, which is exactly why the notice has to reach\nthe page: a reader who followed a citation here needs it before the text.",
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "retracted_at": {
+          "format": "date-time",
+          "title": "Retracted At",
+          "type": "string"
+        },
+        "retracted_by": {
+          "format": "uuid",
+          "title": "Retracted By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "retracted_by",
+        "retracted_at"
+      ],
+      "title": "RetractionOut",
+      "type": "object"
+    },
+    "RightsOut": {
+      "properties": {
+        "basis": {
+          "enum": [
+            "public_domain",
+            "cc0",
+            "cc_by",
+            "cc_by_sa",
+            "rights_reserved"
+          ],
+          "title": "Basis",
+          "type": "string"
+        },
+        "jurisdictions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Jurisdictions",
+          "type": "array"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "source_claim": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Claim"
+        }
+      },
+      "required": [
+        "basis",
+        "reason"
+      ],
+      "title": "RightsOut",
+      "type": "object"
+    },
+    "TikzRender": {
+      "description": "One materialized `:::tikz` diagram: public SVG URL plus intrinsic size\nin CSS px (None when tikz-service could not read it from the SVG).",
+      "properties": {
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Height"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Width"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "TikzRender",
+      "type": "object"
+    },
+    "ValidationError": {
+      "properties": {
+        "ctx": {
+          "title": "Context",
+          "type": "object"
+        },
+        "input": {
+          "title": "Input"
+        },
+        "loc": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": "Location",
+          "type": "array"
+        },
+        "msg": {
+          "title": "Message",
+          "type": "string"
+        },
+        "type": {
+          "title": "Error Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "loc",
+        "msg",
+        "type"
+      ],
+      "title": "ValidationError",
+      "type": "object"
+    },
+    "Visibility": {
+      "enum": [
+        "public",
+        "private",
+        "by_link"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    },
+    "VisibilityLevel": {
+      "description": "Viewer-access hierarchy: public < authenticated < connections < owner.\n\nThe BFF computes the caller's level and forwards it as X-Viewer-Access;\nthe domain service trusts the header and enforces it. See API_PLAN.md §3a.",
+      "enum": [
+        "public",
+        "authenticated",
+        "connections",
+        "owner"
+      ],
+      "title": "VisibilityLevel",
+      "type": "string"
+    }
+  }
+}

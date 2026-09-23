@@ -1,0 +1,35 @@
+# Build output: `make build`, `make cross`, and goreleaser all write here.
+/lt
+/lt.exe
+/dist/
+
+# Go test and profiling artefacts.
+*.test
+*.out
+*.prof
+coverage.*
+/vendor/
+
+# scripts/contract.py leaves bytecode behind when run from the host.
+__pycache__/
+*.py[cod]
+
+# Credentials never belong in this repo. lt keeps its own in the user's config
+# directory, never the working tree, but a hand-made token file or .env would
+# otherwise be one `git add .` away from a public repo.
+.env
+.env.*
+!.env.example
+credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Editors and operating systems.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
