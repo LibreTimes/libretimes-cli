@@ -84,6 +84,13 @@ func newBookCommand(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "book",
 		Short: "Work with books: a text read one chapter per page",
+		Long: "Work with books. A book is one work whose text is a tree of parts and " +
+			"chapters, each read on a page of its own. Its manifest names the book and " +
+			"lists the chapter files in order. Books are published by a venue " +
+			"(`lt types book`), so a manifest says `is_draft: true`.",
+		Example: "  # Plan a book, then write it as a draft\n" +
+			"  lt book publish book.md --dry-run\n" +
+			"  lt book publish book.md --yes",
 	}
 	cmd.AddCommand(newBookPublishCommand(e))
 	return cmd
@@ -105,7 +112,19 @@ func newBookPublishCommand(e *env) *cobra.Command {
 			"chapter's text in a file of its own. The manifest is authoritative for " +
 			"the book's order: chapters are created, updated and moved to match it. " +
 			"A chapter on the site that the manifest no longer names stops the run " +
-			"unless --prune is given, which deletes it. Run with --dry-run first.",
+			"unless --prune is given, which deletes it. Run with --dry-run first.\n\n" +
+			"On the server: a new book is created as a draft, its chapters are written, " +
+			"and only then, if the manifest does not say `is_draft: true`, it is " +
+			"published. While the type registry says a venue publishes books, as it " +
+			"does today (`lt types book`), a manifest without `is_draft: true` is " +
+			"refused before anything is written. It never deletes " +
+			"a chapter without --prune, and never restores a deleted book.",
+		Example: "  # See what would happen, writing nothing\n" +
+			"  lt book publish books/principia/book.md --dry-run\n\n" +
+			"  # Write it\n" +
+			"  lt book publish books/principia/book.md --yes\n\n" +
+			"  # Delete the chapters the manifest no longer lists\n" +
+			"  lt book publish books/principia/book.md --yes --prune",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths, err := resolveFiles(args)
@@ -154,8 +173,10 @@ func newBookPublishCommand(e *env) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show the plan; write nothing.")
-	cmd.Flags().BoolVar(&yes, "yes", false, "Confirm the writes.")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false,
+		"Show what the book and each chapter would do and write nothing.")
+	cmd.Flags().BoolVar(&yes, "yes", false,
+		"Confirm the writes. Without it (or --dry-run) the command writes nothing and exits 3.")
 	cmd.Flags().BoolVar(&prune, "prune", false,
 		"Delete chapters on the site that the manifest no longer lists. On a published "+
 			"book their reading numbers are retired, never reissued.")

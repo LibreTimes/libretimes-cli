@@ -161,7 +161,22 @@ func newPublishCommand(e *env) *cobra.Command {
 			"The frontmatter is the import manifest: `import_key` is what makes a " +
 			"re-run an update instead of a duplicate. Run with --dry-run first — it " +
 			"reports create/update/blocked per file and writes nothing, so the first " +
-			"real run is never a guess.",
+			"real run is never a guess.\n\n" +
+			"On the server: a file whose key is new is created, and published unless " +
+			"its frontmatter says `is_draft: true`; a file whose key exists updates " +
+			"that work in place, and changes its draft state only when the file names " +
+			"one. `type` must be a kind `lt types` lists. Books and scientific works " +
+			"stay drafts until a venue publishes them, so their files say " +
+			"`is_draft: true`; a run that would publish one is refused before it writes.\n\n" +
+			"It never deletes a work, never restores a deleted one (that file is " +
+			"`blocked`), and never removes a name from a byline. `lt help frontmatter` " +
+			"lists the keys a file may carry.",
+		Example: "  # See what would happen, writing nothing\n" +
+			"  lt publish notes/*.md --dry-run\n\n" +
+			"  # Do it\n" +
+			"  lt publish notes/*.md --yes\n\n" +
+			"  # One file, with machine-readable results\n" +
+			"  lt publish notes/lecture-01.md --yes --json",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths, err := resolveFiles(args)
@@ -212,8 +227,10 @@ func newPublishCommand(e *env) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show the plan; write nothing.")
-	cmd.Flags().BoolVar(&yes, "yes", false, "Confirm the writes.")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false,
+		"Show what each file would do (create, update, blocked, failed) and write nothing.")
+	cmd.Flags().BoolVar(&yes, "yes", false,
+		"Confirm the writes. Without it (or --dry-run) the command writes nothing and exits 3.")
 	return cmd
 }
 

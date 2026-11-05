@@ -71,6 +71,13 @@ cross: ## Cross-compile every release target
 	done
 	@ls -la dist/
 
+# The manual's command reference, generated from the command tree so the pages
+# and `--help` are one text. The release workflow attaches
+# the same pages to every release, for the documentation site to take.
+.PHONY: docs
+docs: ## Generate the command reference pages into dist/docs
+	@$(GO) sh -c 'rm -rf dist/docs && go run -ldflags "$(LDFLAGS)" ./cmd/lt docs generate dist/docs'
+
 # The paths lt actually calls. The rest of the API is free to move without
 # breaking this client, so watching all 177 of them would make the drift check
 # noise rather than signal.

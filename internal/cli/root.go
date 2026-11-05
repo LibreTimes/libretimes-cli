@@ -138,7 +138,16 @@ func NewRootCommand() (*cobra.Command, *env) {
 		Short: "Work with LibreTimes from the command line",
 		Long: "lt is a client of the LibreTimes public API.\n\n" +
 			"It holds no internal credential and reaches nothing a third party could " +
-			"not reach with the same token.",
+			"not reach with the same token.\n\n" +
+			"Results go to stdout and progress and errors to stderr; every command " +
+			"takes --json. `lt help exit-codes`, `lt help environment` and " +
+			"`lt help frontmatter` cover what is not one command's.",
+		Example: "  # Sign in, see what a publish would do, then do it\n" +
+			"  lt auth login\n" +
+			"  lt publish notes/*.md --dry-run\n" +
+			"  lt publish notes/*.md --yes\n\n" +
+			"  # Point a single command at a local dev stack\n" +
+			"  lt whoami --env dev",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// A bare `lt` should show help, not an error.
@@ -169,7 +178,9 @@ func NewRootCommand() (*cobra.Command, *env) {
 		newBookCommand(e),
 		newTypesCommand(e),
 		newVersionCommand(e),
+		newDocsCommand(e),
 	)
+	root.AddCommand(newTopicCommands()...)
 	return root, e
 }
 

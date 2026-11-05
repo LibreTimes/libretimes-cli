@@ -59,6 +59,13 @@ jobs:
             go test -race -count=1 ./...
           fi
 
+      # The manual's reference is generated from the commands; a generator
+      # that cannot run would ship a release with no pages. help_test.go is
+      # what fails on a command or flag without its text.
+      - name: generate the command reference
+        if: matrix.os == 'ubuntu-24.04'
+        run: go run ./cmd/lt docs generate "$RUNNER_TEMP/reference"
+
       - name: go.mod is tidy
         if: matrix.os == 'ubuntu-24.04'
         run: |

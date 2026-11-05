@@ -17,6 +17,17 @@ func newAuthCommand(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth <command>",
 		Short: "Sign in to LibreTimes and manage cached credentials",
+		Long: "Sign in to LibreTimes and manage the credentials lt caches.\n\n" +
+			"lt keeps one credential per deployment (prod or dev) in your config " +
+			"directory, and refreshes it on its own. These commands change nothing on " +
+			"the platform: a login creates a session in your name, a logout forgets " +
+			"this machine's copy of it, and neither touches your account.",
+		Example: "  # Sign in through your browser\n" +
+			"  lt auth login\n\n" +
+			"  # Sign in from a machine with no browser\n" +
+			"  lt auth login --device\n\n" +
+			"  # See where you are signed in\n" +
+			"  lt auth status",
 	}
 	cmd.AddCommand(
 		newAuthLoginCommand(e),
@@ -42,7 +53,18 @@ func newAuthLoginCommand(e *env) *cobra.Command {
 			"loopback port. Use --device where that cannot work — a container, an " +
 			"SSH session, a CI runner — and authorize on another machine instead.\n\n" +
 			"lt never sees your password. The browser and Keycloak handle it, which " +
-			"is what keeps MFA, session revocation and account state working.",
+			"is what keeps MFA, session revocation and account state working.\n\n" +
+			"The credential is cached in your config directory (`lt help environment` " +
+			"says where), replacing any earlier one for the same deployment, and the " +
+			"login is checked by reading your profile. Nothing else is written.",
+		Example: "  # Sign in to production through the browser\n" +
+			"  lt auth login\n\n" +
+			"  # Sign in from a container or over SSH: print a code to enter elsewhere\n" +
+			"  lt auth login --device\n\n" +
+			"  # Start a new session after a server-side sign-out (session_revoked)\n" +
+			"  lt auth login --force\n\n" +
+			"  # Sign in to a local dev stack\n" +
+			"  lt auth login --env dev",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
@@ -105,7 +127,15 @@ func newAuthLogoutCommand(e *env) *cobra.Command {
 	return &cobra.Command{
 		Use:   "logout",
 		Short: "Forget the cached credentials for this deployment",
-		Args:  cobra.NoArgs,
+		Long: "Remove this deployment's cached credential from this machine.\n\n" +
+			"Local only: the Keycloak session stays open, and so does your browser's " +
+			"sign-in. To end the session everywhere, sign out on the site. Other " +
+			"deployments' credentials are kept.",
+		Example: "  # Forget the production credential\n" +
+			"  lt auth logout\n\n" +
+			"  # Forget the dev stack's credential and keep production's\n" +
+			"  lt auth logout --env dev",
+		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			profile, err := e.profile(config.ProductLibreTimes)
 			if err != nil {
@@ -153,7 +183,17 @@ func newAuthStatusCommand(e *env) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show which deployments you are signed in to",
-		Args:  cobra.NoArgs,
+		Long: "List every cached credential: the deployment, the account it signs in as, " +
+			"and when its access token expires. The one this invocation would use is " +
+			"marked.\n\n" +
+			"Reads the local cache only. It never contacts the API and never refreshes " +
+			"a token, so an expired access token is reported as such and renewed on " +
+			"the next command that needs it.",
+		Example: "  # Where am I signed in, and as whom?\n" +
+			"  lt auth status\n\n" +
+			"  # The account behind the active credential, for a script\n" +
+			"  lt auth status --json | jq -r '.[] | select(.active) | .username'",
+		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			profile, err := e.profile(config.ProductLibreTimes)
 			if err != nil {
@@ -216,7 +256,12 @@ func newAuthTokenCommand(e *env) *cobra.Command {
 		Long: "Print a valid access token on stdout, refreshing it if needed.\n\n" +
 			"This is the one command that emits a credential, and it does so only " +
 			"because you asked. Treat the output as a secret: it authenticates as " +
-			"you until it expires.",
+			"you until it expires.\n\n" +
+			"A refresh rewrites the local cache; nothing changes on the platform.",
+		Example: "  # Hand a credential to another tool\n" +
+			"  curl -H \"Authorization: Bearer $(lt auth token)\" https://api.libretimes.io/libretimes/v1/profiles/me\n\n" +
+			"  # Mint a token here, use it in CI\n" +
+			"  LIBRETIMES_TOKEN=$(lt auth token) lt whoami",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()

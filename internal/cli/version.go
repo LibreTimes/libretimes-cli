@@ -32,7 +32,13 @@ func newVersionCommand(e *env) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Show the lt version",
-		Args:  cobra.NoArgs,
+		Long: "Show the version of lt, the commit it was built from, the build date, " +
+			"and the Go toolchain and platform. A build from source with no release " +
+			"stamp reports `dev`. Contacts nothing.",
+		Example: "  lt version\n\n" +
+			"  # The version alone\n" +
+			"  lt version --json | jq -r .version",
+		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			info := versionInfo{
 				Version:  Version,

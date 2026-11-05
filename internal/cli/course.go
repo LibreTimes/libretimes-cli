@@ -74,6 +74,12 @@ func newCourseCommand(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "course",
 		Short: "Work with courses: the collections that group lecture notes",
+		Long: "Work with courses. A course is a collection that holds one lecture " +
+			"course's notes in order; each lecture is a work of its own, published " +
+			"with `lt publish`, and the course manifest lists them.",
+		Example: "  # Plan a course, then write it\n" +
+			"  lt course publish course.md --dry-run\n" +
+			"  lt course publish course.md --yes",
 	}
 	cmd.AddCommand(newCoursePublishCommand(e))
 	return cmd
@@ -93,7 +99,15 @@ func newCoursePublishCommand(e *env) *cobra.Command {
 			"`language`) and lists its lecture files in order under `lectures`. Each " +
 			"lecture already published with `lt publish` is added to the course, in " +
 			"that order; lectures not published yet are skipped and picked up by the " +
-			"next run. Nothing is ever removed. Run with --dry-run first.",
+			"next run. Nothing is ever removed. Run with --dry-run first.\n\n" +
+			"On the server: the collection is created or updated by its `import_key`, " +
+			"the listed lectures it lacks are added, and the manifest's order is " +
+			"restored. Items the manifest does not list are left alone.",
+		Example: "  # See what would happen, writing nothing\n" +
+			"  lt course publish courses/analysis/course.md --dry-run\n\n" +
+			"  # Publish the lectures first, then the course that lists them\n" +
+			"  lt publish courses/analysis/lectures/*.md --yes\n" +
+			"  lt course publish courses/analysis/course.md --yes --json",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths, err := resolveFiles(args)
@@ -139,8 +153,10 @@ func newCoursePublishCommand(e *env) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show the plan; write nothing.")
-	cmd.Flags().BoolVar(&yes, "yes", false, "Confirm the writes.")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false,
+		"Show what each course and lecture would do and write nothing.")
+	cmd.Flags().BoolVar(&yes, "yes", false,
+		"Confirm the writes. Without it (or --dry-run) the command writes nothing and exits 3.")
 	return cmd
 }
 

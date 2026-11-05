@@ -65,7 +65,8 @@ $ lt whoami --json          # stderr, exit 1
 }
 ```
 
-`--json` failures and per-file `publish` results carry a stable `code`:
+`--json` failures and per-file `publish` results carry a stable `code`
+(`lt help exit-codes` has the full list, generated from the code):
 
 | Code | Retry? |
 |---|---|

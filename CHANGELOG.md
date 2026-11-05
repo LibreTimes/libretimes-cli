@@ -73,6 +73,19 @@ stays there, serving MCP.
   (save it with `is_draft: true`), `work_incomplete` (the missing fields in
   words, and their keys in `missing`), `family_change`. Previously a 409 read
   as an `import_key` conflict.
+- Every command's `--help` now says what it does, what it changes on the
+  server and what it never does, with at least two examples; every flag is
+  described. A test fails on a command or flag that is not.
+- `lt help exit-codes`, `lt help environment` and `lt help frontmatter`: the
+  exit and error codes, the environment variables and credential file, and
+  every frontmatter key, generated from the code that defines them (the
+  frontmatter from its structs, the value lists from the validation's own).
+  Tests fail when the source reads a variable or emits a code these pages do
+  not name.
+- `make docs` (and the hidden `lt docs generate <dir>`) writes the manual's
+  command reference: one markdown page per command and help topic, the same
+  text as `--help`, with the documentation site's frontmatter. CI runs the
+  generator; each release attaches the pages as `lt-docs-reference.tar.gz`.
 
 ### Fixed
 
