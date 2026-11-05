@@ -118,6 +118,8 @@ type Client struct {
 	token   string
 	http    *http.Client
 	version string
+	// types caches the type registry (WorkTypes) for this client's lifetime.
+	types workTypesCache
 }
 
 // New builds a client for one deployment. token may be empty: reads of public
@@ -229,7 +231,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	}
 
 	if resp.StatusCode >= 400 {
-		return FromResponse(resp.StatusCode, payload, describe(method, path))
+		return responseError(resp.StatusCode, payload, describe(method, path))
 	}
 
 	if out == nil || resp.StatusCode == http.StatusNoContent || len(payload) == 0 {

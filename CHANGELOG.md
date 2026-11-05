@@ -62,6 +62,17 @@ stays there, serving MCP.
   together.
 - Single-file binaries for linux, darwin and windows on amd64 and arm64, all
   cross-compiled from one Linux runner.
+- `lt types [kind]` lists the platform's type registry (`GET /work-types`):
+  each kind's family, whether its author or a venue publishes it, and the
+  fields a publish refuses without. Public; no sign-in.
+- A file's `type` is checked against that registry before any write, and a
+  run that would publish a book or a scientific work fails with
+  `venue_required` before writing, on `--dry-run` too. lt holds no list of
+  kinds of its own.
+- The publish refusals get their own codes and words: `venue_required`
+  (save it with `is_draft: true`), `work_incomplete` (the missing fields in
+  words, and their keys in `missing`), `family_change`. Previously a 409 read
+  as an `import_key` conflict.
 
 ### Fixed
 

@@ -74,6 +74,9 @@ $ lt whoami --json          # stderr, exit 1
 | `onboarding_required` | **no** — the account has no LibreTimes profile; only a human completing onboarding fixes it |
 | `forbidden` | no |
 | `conflict` | usually no; read the message |
+| `venue_required` | **no** — a book or a scientific work stays a draft until a venue publishes it. Set `is_draft: true` in its frontmatter and re-run |
+| `work_incomplete` | yes, after adding the fields its type requires; per-file results list their keys in `missing` |
+| `family_change` | no — a published work cannot move between a page kind and a scientific kind. Keep its `type`, or publish under another `import_key` |
 | `validation_error` | yes, after correcting the named field |
 | `rate_limited` | yes, after a pause |
 | `upstream_error` | yes, later |
@@ -118,6 +121,11 @@ lt publish ./content/*.md --yes --json
 
 `--dry-run` reports exactly what `--yes` will do, including `blocked`. It never
 promises work the real run would refuse.
+
+A file's `type` is checked against the platform's type registry (`lt types`)
+before anything is written: an unknown kind fails the file with
+`validation_error`, and a file that would publish a kind a venue publishes
+fails with `venue_required`, on `--dry-run` as on the real run.
 
 ## Byline credits
 

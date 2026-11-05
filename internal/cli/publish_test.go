@@ -28,7 +28,12 @@ func newRecorder(t *testing.T, handler func(w http.ResponseWriter, r *http.Reque
 	t.Helper()
 	rec := &recorder{handler: handler}
 	rec.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rec.mu = append(rec.mu, r.Method+" "+r.URL.Path)
+		// The type registry is reference data read once per run, not part of
+		// the reconcile, so call-order assertions leave it out. A handler
+		// that does not answer it serves no kinds, and the checks step aside.
+		if r.URL.Path != "/work-types" {
+			rec.mu = append(rec.mu, r.Method+" "+r.URL.Path)
+		}
 		if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 			rec.writeSum++
 			var body map[string]any

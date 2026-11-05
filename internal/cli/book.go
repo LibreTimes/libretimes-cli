@@ -57,6 +57,7 @@ type bookResult struct {
 	ExpressionID  string              `json:"expression_id,omitempty"`
 	Code          string              `json:"code,omitempty"`
 	Message       string              `json:"message,omitempty"`
+	Missing       []string            `json:"missing,omitempty"`
 	Contributors  []contributorResult `json:"contributors,omitempty"`
 	Chapters      []chapterResult     `json:"chapters,omitempty"`
 	// Unlisted are the divisions on the site that the manifest does not name.
@@ -70,6 +71,7 @@ type bookResult struct {
 func (r *bookResult) setFailure(err error) {
 	r.Action = actionFailed
 	r.Code, r.Message = codeAndMessage(err)
+	r.Missing = missingOf(err)
 }
 
 func (r *bookResult) invalid(format string, args ...any) {
@@ -350,6 +352,19 @@ func publishBook(ctx context.Context, client *api.Client, path string, opts book
 	default:
 		result.Action = actionCreate
 		result.Contributors = credits
+	}
+
+	// Before any write: a book the run would publish -- a create not marked
+	// `is_draft: true`, or a draft the manifest now marks `is_draft: false` --
+	// is refused here when the registry says a venue publishes books, rather
+	// than after every chapter has been written.
+	publishes := meta.IsDraft == nil || !*meta.IsDraft
+	if result.Action == actionUpdate {
+		publishes = meta.IsDraft != nil && !*meta.IsDraft && info.IsDraft
+	}
+	if err := checkVenue(ctx, client, api.TypeBook, publishes); err != nil {
+		result.setFailure(err)
+		return result
 	}
 
 	matchContents(plan, site)

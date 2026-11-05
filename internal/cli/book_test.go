@@ -44,6 +44,10 @@ type bookAPI struct {
 	// rewrite, when set, is what the server does to a stored body.
 	rewrite func(string) string
 
+	// registry, when set, is the body of GET /work-types; unset, it 404s, as
+	// a server without the registry does.
+	registry string
+
 	calls         []string
 	createdPub    map[string]any
 	pubPatches    []map[string]any
@@ -179,6 +183,12 @@ func (f *bookAPI) handle(w http.ResponseWriter, r *http.Request) {
 		}
 	case r.Method == http.MethodGet && strings.HasSuffix(path, "/authors"):
 		w.Write([]byte(`[]`))
+	case r.Method == http.MethodGet && path == "/work-types":
+		if f.registry == "" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Write([]byte(f.registry))
 	default:
 		f.t.Errorf("unexpected call %s %s", r.Method, path)
 		w.WriteHeader(http.StatusTeapot)

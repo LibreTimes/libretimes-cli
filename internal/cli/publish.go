@@ -38,6 +38,8 @@ type fileResult struct {
 	PublicationID string `json:"publication_id,omitempty"`
 	Code          string `json:"code,omitempty"`
 	Message       string `json:"message,omitempty"`
+	// Missing are the field keys a `work_incomplete` refusal named.
+	Missing []string `json:"missing,omitempty"`
 	// Contributors is the byline plan for the file's `contributors`, absent
 	// when the file lists none.
 	Contributors []contributorResult `json:"contributors,omitempty"`
@@ -47,6 +49,7 @@ type fileResult struct {
 func (r *fileResult) setFailure(err error) {
 	r.Action = actionFailed
 	r.Code, r.Message = codeAndMessage(err)
+	r.Missing = missingOf(err)
 }
 
 // codeAndMessage splits an error into its stable code and its prose. A
@@ -300,6 +303,10 @@ func publishOne(ctx context.Context, client *api.Client, path string, dryRun boo
 		result.setFailure(err)
 		return result
 	}
+	if err := checkKind(ctx, client, meta.Type); err != nil {
+		result.setFailure(err)
+		return result
+	}
 
 	existing, err := client.FindPublicationByImportKey(ctx, key)
 	if err != nil {
@@ -325,6 +332,13 @@ func publishOne(ctx context.Context, client *api.Client, path string, dryRun boo
 	case existing != nil:
 		result.Action = actionUpdate
 		result.PublicationID = existing.ID
+		// An update publishes only when it takes a draft out of draft; a
+		// file without `is_draft` leaves the state alone.
+		publishes := existing.IsDraft && meta.IsDraft != nil && !*meta.IsDraft
+		if err := checkVenue(ctx, client, meta.Type, publishes); err != nil {
+			result.setFailure(err)
+			return result
+		}
 		if len(credits) > 0 {
 			// The update body carries no byline, so the byline is reconciled
 			// against what is there. Read before any write, so --dry-run
@@ -356,6 +370,12 @@ func publishOne(ctx context.Context, client *api.Client, path string, dryRun boo
 
 	default:
 		result.Action = actionCreate
+		// A create is published unless the file says `is_draft: true`: that
+		// is the API's default.
+		if err := checkVenue(ctx, client, meta.Type, meta.IsDraft == nil || !*meta.IsDraft); err != nil {
+			result.setFailure(err)
+			return result
+		}
 		applyToCreate(&input, credits)
 		result.Contributors = credits
 		if dryRun {
