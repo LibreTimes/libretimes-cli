@@ -33,27 +33,40 @@ type Meta struct {
 	Contributors []Contributor `yaml:"contributors"`
 }
 
-// CourseMeta is a course manifest's frontmatter: the collection that groups one
-// lecture course's notes, for `lt course publish`.
+// CollectionMeta is a collection manifest's frontmatter, for `lt collection
+// publish`: the collection's fields, and `items`, the works it lists.
 //
-// Lectures are paths to the lecture files, relative to the manifest, in course
+// Items are paths to the works' files, relative to the manifest, in display
 // order. Each is identified by the `import_key` in its own frontmatter -- the
-// same key `lt publish` used -- so renaming a lecture's key in its file is the
-// only edit a course needs, never a second list of keys to keep in step.
-type CourseMeta struct {
-	ImportKey   string     `yaml:"import_key"`
-	Title       string     `yaml:"title"`
-	Description string     `yaml:"description"`
-	Language    string     `yaml:"language"`
-	Visibility  string     `yaml:"visibility"`
-	CategoryIDs StringList `yaml:"category_ids"`
-	Lectures    StringList `yaml:"lectures"`
+// same key `lt work publish` used -- so renaming a work's key in its file is
+// the only edit a collection needs, never a second list of keys to keep in
+// step.
+type CollectionMeta struct {
+	ImportKey      string     `yaml:"import_key"`
+	CollectionType string     `yaml:"collection_type"`
+	Title          string     `yaml:"title"`
+	Description    string     `yaml:"description"`
+	Language       string     `yaml:"language"`
+	Visibility     string     `yaml:"visibility"`
+	CategoryIDs    StringList `yaml:"category_ids"`
+	Items          StringList `yaml:"items"`
 }
 
-// BookMeta is a book manifest's frontmatter, for `lt book publish`: the
+// TranslationMeta is a translation file's frontmatter, for `lt work
+// translations set` and `lt collection translations set`: which language the
+// file is, and that language's title and description. The body, for a work, is
+// the translated text.
+type TranslationMeta struct {
+	Language    string `yaml:"language"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+}
+
+// BookMeta is a book manifest's frontmatter, for `lt work publish` with
+// `type: book`: the
 // publication's fields, and `contents`, the book's table of contents as a tree.
 //
-// The manifest is authoritative for order, unlike a course's: a book is one
+// The manifest is authoritative for order, unlike a collection's: a book is one
 // text, so a chapter the manifest no longer names is a question the run asks
 // rather than an item it leaves alone.
 type BookMeta struct {

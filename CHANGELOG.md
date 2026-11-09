@@ -11,6 +11,26 @@ stays there, serving MCP.
 
 ### Added
 
+- `lt profile image show|set|rm` — your own profile picture. `set FILE`
+  sends the original JPEG, PNG, WebP, GIF or AVIF (at most 5 MB, type read
+  from the bytes); the server squares it (`--crop x,y,w,h` or `--focus x,y`),
+  stores WebP of at most 512 px and drops EXIF, GPS and colour profile.
+  `--dry-run` checks the file; a write needs `--yes`.
+- `lt work edit WORK [CHANGES.json]` — change part of a work, draft or
+  published, by exact `{old, new}` replacements (and, for a book, structural
+  ops) in a platform edit session, committed as one version with `--message`.
+  `--dry-run` shows the diff and discards; `--keep-open` / `--session` spread
+  an edit over several runs. A refused batch names each failing change; a
+  session the run opened is discarded on a refusal.
+- `lt work notes WORK`, `lt work suggest WORK --old … --new …`,
+  `lt work review WORK`, `lt work accept WORK ID… -m …`,
+  `lt work reject WORK ID…` — passage annotations (the platform's
+  EDITOR-REVIEW-PLAN). A suggestion quotes the work's markdown exactly and is
+  anchored the way the web page anchors (with UTF-16 offsets), so it is
+  highlighted there; a missing or repeated `--old` is refused before anything
+  is written. An accept applies the named suggestions as one version, its
+  edit session named `annotations:lt`.
+
 - `lt auth login` — OAuth 2.1 authorization code with PKCE, catching the
   redirect on a loopback port (RFC 8252, RFC 7636).
 - `lt auth login --device` — the device authorization grant (RFC 8628), for
@@ -22,27 +42,51 @@ stays there, serving MCP.
 - `LT_SKIP_CHECKSUM=1` overrides install.sh's mandatory checksum verification.
 - `lt auth logout`, `lt auth status`, `lt auth token`.
 - `lt whoami`.
-- `lt publish` — reconciles markdown files as publications by `import_key`,
-  find-then-update, with `--dry-run` and `--yes`.
-- `contributors` frontmatter on `lt publish` — byline credits by handle or
+- **Commands are nouns first, then a verb**: `lt work …` and `lt collection …`,
+  the way `gh pr create` is. A book is a `type` of work and a course a
+  `collection_type` of collection, so neither is a command of its own. Dev
+  builds before this had `lt publish`, `lt book publish` and `lt course
+  publish`; they are gone, not aliased. A book manifest now states
+  `type: book`, and a course manifest `collection_type: course` with its files
+  under `items` (was `lectures`).
+- **Works are read and written on `/works`**, the one route family since the
+  platform merged publications into works. `/publications` is gone from the
+  API, so an `lt` built before this cannot publish. A file's `type` is sent as
+  the work's `kind` and its `tags` as `keywords`; `draft: false` on an existing
+  work is a publish (`/works/{id}/publish`) after the field edits, never a
+  field of the edit.
+- `lt work publish` — reconciles markdown files as works by `import_key`,
+  find-then-update, with `--dry-run` and `--yes`. `lt work ls`, `lt work show`.
+- `lt work attachments add|ls|rm` — attach files to a work already published
+  (a draft is fine): uploaded straight to storage through the API's signed URL
+  (the token never goes there), bound by name. A name already attached is
+  `unchanged` when its bytes match (sha256) and `blocked` when they differ,
+  unless `--replace`; files not named are never touched; the work's own file
+  view is refused.
+- `lt work translations set|ls|rm` and `lt collection translations set|ls|rm` —
+  one language per file (`language`, `title`, `description`, and for a work the
+  translated text). Only the fields that differ are written; the original
+  language is refused.
+- `contributors` frontmatter on `lt work publish` — byline credits by handle or
   profile_id, with a contributor role (`lecturer` for course notes). Sent with
   the create; on a re-run, the byline is read and only missing names are
   added. Never removes a name or changes a role, and never re-asks a declined
   invitation. `--dry-run` reports `add`/`present` per name.
-- `lt course publish` — reconciles a course manifest as a `course` collection by
-  its `import_key`: creates or updates it, adds the listed lectures that are
-  published (found by each lecture file's own `import_key`), and restores the
-  manifest's order. Skips lectures that are unpublished, drafts or deleted;
-  never removes an item. `--dry-run` and `--yes`. Needs the platform's
-  collection `import_key` (#1040).
-- `lt book publish` — reconciles a book manifest (a contents tree, one markdown
+- `lt collection publish` — reconciles a collection manifest by its
+  `import_key`, as the manifest's `collection_type` (`course`, `collection`,
+  `recommendation`): creates or updates it, adds the listed works that are
+  published (found by each file's own `import_key`), and restores the
+  manifest's order. Skips works that are unpublished, drafts or deleted; never
+  removes an item. `--dry-run` and `--yes`. `lt collection ls`, `lt collection
+  show`. Needs the platform's collection `import_key` (#1040).
+- `lt work publish` with `type: book` — reconciles a book manifest (a contents tree, one markdown
   file per chapter) as a publication of type `book` by its `import_key`:
   creates it as a draft, creates, updates and moves chapters to match the
   manifest (matched by `ref`, else by position), and publishes it once its
   chapters have text. A chapter the manifest no longer lists stops the run
   unless `--prune` deletes it. `--dry-run` walks the same placements and
   writes nothing. Needs the platform's authored books (#1080).
-- `lt book publish` writes only the text in the manifest's `language`. It used
+- A book publish writes only the text in the manifest's `language`. It used
   to fall back to the book's own language, which since book translations
   would have written one language's chapters over another's; a language the
   book has no text in now fails with `no_expression`.
@@ -64,6 +108,13 @@ stays there, serving MCP.
   cross-compiled from one Linux runner.
 
 ### Fixed
+
+- `lt work publish` published a file marked `visibility: private` publicly:
+  the publish call carried no body, and the platform's publish fills in
+  `public` (LibreTimes/libretimes#1288). It now states the file's visibility,
+  or the work's own (libretimes-cli#1).
+- An API error naming item or field index 0 read "item : …": the number 0 was
+  trimmed to nothing.
 
 - **The repository and module are `libretimes-cli`, not `lt`.** The binary,
   the archives and the Homebrew cask stay `lt` — descriptive repo, short

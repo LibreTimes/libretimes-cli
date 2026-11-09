@@ -36,19 +36,33 @@ type AuthorInvite struct {
 // BylineEntry is the subset of a byline row lt reconciles against. Status is
 // kept because a declined row still occupies the byline: re-asking someone
 // who said no is exactly what a re-run must not do.
+//
+// The API names it `consent`, with a fourth value: `credited`, a connection's
+// credit, which is on the page and reads here as `accepted`.
 type BylineEntry struct {
 	ProfileID string `json:"profile_id"`
 	Role      string `json:"role"`
 	Status    string `json:"status"`
+	Consent   string `json:"consent,omitempty"`
+}
+
+func (e *BylineEntry) normalize() {
+	if e.Consent == "credited" {
+		e.Status = "accepted"
+	} else if e.Consent != "" {
+		e.Status = e.Consent
+	}
 }
 
 // ListAuthors returns a publication's full byline, pending and declined rows
 // included. The API restricts it to people already on that byline.
 func (c *Client) ListAuthors(ctx context.Context, publicationID string) ([]BylineEntry, error) {
 	var out []BylineEntry
-	path := "/publications/" + url.PathEscape(publicationID) + "/authors"
-	if err := c.Get(ctx, path, nil, &out); err != nil {
+	if err := c.Get(ctx, workPath(publicationID)+"/authors", nil, &out); err != nil {
 		return nil, err
+	}
+	for i := range out {
+		out[i].normalize()
 	}
 	return out, nil
 }
@@ -56,10 +70,10 @@ func (c *Client) ListAuthors(ctx context.Context, publicationID string) ([]Bylin
 // InviteAuthor adds one name to an existing publication's byline.
 func (c *Client) InviteAuthor(ctx context.Context, publicationID string, in AuthorInvite) (*BylineEntry, error) {
 	var out BylineEntry
-	path := "/publications/" + url.PathEscape(publicationID) + "/authors"
-	if err := c.Post(ctx, path, in, &out); err != nil {
+	if err := c.Post(ctx, workPath(publicationID)+"/authors", in, &out); err != nil {
 		return nil, err
 	}
+	out.normalize()
 	return &out, nil
 }
 

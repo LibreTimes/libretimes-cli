@@ -12,9 +12,9 @@ import (
 	"github.com/The-LibreTimes/libretimes-cli/internal/api"
 )
 
-// courseAPI is a fake of the slice of the API `lt course publish` touches.
+// collectionAPI is a fake of the slice of the API `lt collection publish` touches.
 // Publications are keyed by import_key; the collection exists when coll is set.
-type courseAPI struct {
+type collectionAPI struct {
 	pubs  map[string]string // import_key -> JSON ref
 	coll  string            // JSON ref for the course's import_key, "" = none
 	items []string          // entity ids already in the collection, in order
@@ -30,11 +30,11 @@ type courseAPI struct {
 	reordered []string
 }
 
-func (f *courseAPI) handler(t *testing.T) func(w http.ResponseWriter, r *http.Request) bool {
+func (f *collectionAPI) handler(t *testing.T) func(w http.ResponseWriter, r *http.Request) bool {
 	return func(w http.ResponseWriter, r *http.Request) bool {
 		path := r.URL.Path
 		switch {
-		case r.Method == http.MethodGet && path == "/publications/me/by-import-key":
+		case r.Method == http.MethodGet && path == "/works/me/by-import-key":
 			ref, ok := f.pubs[r.URL.Query().Get("key")]
 			if !ok {
 				w.WriteHeader(http.StatusNotFound)
@@ -88,7 +88,7 @@ func (f *courseAPI) handler(t *testing.T) func(w http.ResponseWriter, r *http.Re
 
 // capture pulls the recorded write bodies into named fields. The recorder
 // keeps POST/PATCH bodies in order; PUT is decoded by the handler itself.
-func (f *courseAPI) capture(rec *recorder) {
+func (f *collectionAPI) capture(rec *recorder) {
 	i := 0
 	for _, call := range rec.mu {
 		method, path, _ := strings.Cut(call, " ")
@@ -114,8 +114,8 @@ func lecture(key string) string {
 	return "---\ntitle: L\ntype: lecture\nimport_key: " + key + "\n---\nBody."
 }
 
-// writeCourse lays out a manifest and three lecture files in one folder.
-func writeCourse(t *testing.T, manifest string) string {
+// writeCollection lays out a manifest and three work files in one folder.
+func writeCollection(t *testing.T, manifest string) string {
 	t.Helper()
 	dir := t.TempDir()
 	writeFile(t, dir, "lecture-01.md", lecture("sh/an/lecture-01"))
@@ -124,39 +124,40 @@ func writeCourse(t *testing.T, manifest string) string {
 	return writeFile(t, dir, "README.md", manifest)
 }
 
-const courseManifest = `---
+const collectionManifest = `---
 import_key: sh/an
 title: Анализ 1
 language: ru
-lectures:
+collection_type: course
+items:
   - lecture-01.md
   - lecture-02.md
   - lecture-03.md
 ---
 Working notes that are not published.`
 
-func runCourse(t *testing.T, f *courseAPI, path string, dryRun bool) (courseResult, *recorder) {
+func runCollection(t *testing.T, f *collectionAPI, path string, dryRun bool) (collectionResult, *recorder) {
 	t.Helper()
 	rec := newRecorder(t, f.handler(t))
-	result := publishCourse(context.Background(), api.New(rec.server.URL, "tok", "test"), path, dryRun)
+	result := publishCollection(context.Background(), api.New(rec.server.URL, "tok", "test"), path, dryRun)
 	f.capture(rec)
 	return result, rec
 }
 
-func actions(r courseResult) []string {
+func actions(r collectionResult) []string {
 	var out []string
-	for _, l := range r.Lectures {
+	for _, l := range r.Items {
 		out = append(out, l.Action+":"+l.Reason)
 	}
 	return out
 }
 
-func TestCourseCreatesAndAddsPublishedLecturesInOrder(t *testing.T) {
-	f := &courseAPI{pubs: map[string]string{
+func TestCollectionCreatesAndAddsPublishedWorksInOrder(t *testing.T) {
+	f := &collectionAPI{pubs: map[string]string{
 		"sh/an/lecture-01": `{"id":"p1"}`,
 		"sh/an/lecture-03": `{"id":"p3"}`,
 	}}
-	result, rec := runCourse(t, f, writeCourse(t, courseManifest), false)
+	result, rec := runCollection(t, f, writeCollection(t, collectionManifest), false)
 
 	if result.Action != actionCreate || result.CollectionID != "coll-new" {
 		t.Fatalf("result = %+v", result)
@@ -172,17 +173,17 @@ func TestCourseCreatesAndAddsPublishedLecturesInOrder(t *testing.T) {
 		t.Errorf("added = %v, want p1 then p3", f.added)
 	}
 	if want := []string{"add:", "skip:not_published", "add:"}; !slices.Equal(actions(result), want) {
-		t.Errorf("lectures = %v, want %v", actions(result), want)
+		t.Errorf("items = %v, want %v", actions(result), want)
 	}
 	if strings.Contains(rec.calls(), "PUT") {
-		t.Errorf("a fresh course is appended in order and needs no reorder: %s", rec.calls())
+		t.Errorf("a fresh collection is appended in order and needs no reorder: %s", rec.calls())
 	}
 }
 
-// Find-then-update: an existing course is patched, only the missing lecture is
+// Find-then-update: an existing collection is patched, only the missing work is
 // added, and the manifest's order is restored.
-func TestCourseUpdateAddsMissingAndRestoresOrder(t *testing.T) {
-	f := &courseAPI{
+func TestCollectionUpdateAddsMissingAndRestoresOrder(t *testing.T) {
+	f := &collectionAPI{
 		pubs: map[string]string{
 			"sh/an/lecture-01": `{"id":"p1"}`,
 			"sh/an/lecture-02": `{"id":"p2"}`,
@@ -191,7 +192,7 @@ func TestCourseUpdateAddsMissingAndRestoresOrder(t *testing.T) {
 		coll:  `{"id":"coll-1","import_key":"sh/an"}`,
 		items: []string{"p3", "extra", "p1"},
 	}
-	result, _ := runCourse(t, f, writeCourse(t, courseManifest), false)
+	result, _ := runCollection(t, f, writeCollection(t, collectionManifest), false)
 
 	if result.Action != actionUpdate || result.CollectionID != "coll-1" {
 		t.Fatalf("result = %+v", result)
@@ -209,33 +210,33 @@ func TestCourseUpdateAddsMissingAndRestoresOrder(t *testing.T) {
 		t.Errorf("unlisted = %d, want 1 (the item the manifest does not name)", result.Unlisted)
 	}
 	if want := []string{"present:", "add:", "present:"}; !slices.Equal(actions(result), want) {
-		t.Errorf("lectures = %v, want %v", actions(result), want)
+		t.Errorf("items = %v, want %v", actions(result), want)
 	}
 }
 
-func TestCourseInOrderReRunAddsAndReordersNothing(t *testing.T) {
-	f := &courseAPI{
+func TestCollectionInOrderReRunAddsAndReordersNothing(t *testing.T) {
+	f := &collectionAPI{
 		pubs:  map[string]string{"sh/an/lecture-01": `{"id":"p1"}`, "sh/an/lecture-02": `{"id":"p2"}`},
 		coll:  `{"id":"coll-1"}`,
 		items: []string{"p1", "p2"},
 	}
-	result, rec := runCourse(t, f, writeCourse(t, courseManifest), false)
+	result, rec := runCollection(t, f, writeCollection(t, collectionManifest), false)
 
 	if result.Reordered || len(f.added) != 0 {
 		t.Errorf("reordered=%v added=%v", result.Reordered, f.added)
 	}
 	if strings.Contains(rec.calls(), "PUT") || strings.Contains(rec.calls(), "POST") {
-		t.Errorf("an unchanged course should only be patched: %s", rec.calls())
+		t.Errorf("an unchanged collection should only be patched: %s", rec.calls())
 	}
 }
 
-func TestCourseDryRunWritesNothing(t *testing.T) {
-	f := &courseAPI{
+func TestCollectionDryRunWritesNothing(t *testing.T) {
+	f := &collectionAPI{
 		pubs:  map[string]string{"sh/an/lecture-02": `{"id":"p2"}`, "sh/an/lecture-01": `{"id":"p1"}`},
 		coll:  `{"id":"coll-1"}`,
 		items: []string{"p2"},
 	}
-	result, rec := runCourse(t, f, writeCourse(t, courseManifest), true)
+	result, rec := runCollection(t, f, writeCollection(t, collectionManifest), true)
 
 	if rec.writeSum != 0 || strings.Contains(rec.calls(), "PUT") {
 		t.Errorf("--dry-run wrote: %s", rec.calls())
@@ -245,32 +246,32 @@ func TestCourseDryRunWritesNothing(t *testing.T) {
 		t.Error("dry run should report the reorder the real run would make")
 	}
 	if want := []string{"add:", "present:", "skip:not_published"}; !slices.Equal(actions(result), want) {
-		t.Errorf("lectures = %v, want %v", actions(result), want)
+		t.Errorf("items = %v, want %v", actions(result), want)
 	}
 }
 
-// A deleted or draft lecture is never added: readers could not open it.
-func TestCourseSkipsDeletedAndDraftLectures(t *testing.T) {
-	f := &courseAPI{pubs: map[string]string{
+// A deleted or draft work is never added: readers could not open it.
+func TestCollectionSkipsDeletedAndDraftWorks(t *testing.T) {
+	f := &collectionAPI{pubs: map[string]string{
 		"sh/an/lecture-01": `{"id":"p1","removed":true}`,
 		"sh/an/lecture-02": `{"id":"p2","is_draft":true}`,
 		"sh/an/lecture-03": `{"id":"p3"}`,
 	}}
-	result, _ := runCourse(t, f, writeCourse(t, courseManifest), false)
+	result, _ := runCollection(t, f, writeCollection(t, collectionManifest), false)
 
 	if !slices.Equal(f.added, []string{"p3"}) {
 		t.Errorf("added = %v, want only p3", f.added)
 	}
 	if want := []string{"skip:deleted", "skip:draft", "add:"}; !slices.Equal(actions(result), want) {
-		t.Errorf("lectures = %v, want %v", actions(result), want)
+		t.Errorf("items = %v, want %v", actions(result), want)
 	}
 }
 
 // Against a server that predates collection import keys, every run would make
-// a new course. The create is rolled back and the run fails instead.
-func TestCourseRollsBackOnAServerWithoutImportKeys(t *testing.T) {
-	f := &courseAPI{oldServer: true, pubs: map[string]string{"sh/an/lecture-01": `{"id":"p1"}`}}
-	result, _ := runCourse(t, f, writeCourse(t, courseManifest), false)
+// a new collection. The create is rolled back and the run fails instead.
+func TestCollectionRollsBackOnAServerWithoutImportKeys(t *testing.T) {
+	f := &collectionAPI{oldServer: true, pubs: map[string]string{"sh/an/lecture-01": `{"id":"p1"}`}}
+	result, _ := runCollection(t, f, writeCollection(t, collectionManifest), false)
 
 	if result.Action != actionFailed || result.Code != "unsupported_server" {
 		t.Fatalf("result = %+v", result)
@@ -283,10 +284,10 @@ func TestCourseRollsBackOnAServerWithoutImportKeys(t *testing.T) {
 	}
 }
 
-// A lecture deleted after it was added stays in the course, is reported as
+// A work deleted after it was added stays in the collection, is reported as
 // skipped, and is not miscounted as an item the manifest does not name.
-func TestCourseDeletedLectureAlreadyInTheCourseIsNotUnlisted(t *testing.T) {
-	f := &courseAPI{
+func TestCollectionDeletedWorkAlreadyInTheCollectionIsNotUnlisted(t *testing.T) {
+	f := &collectionAPI{
 		pubs: map[string]string{
 			"sh/an/lecture-01": `{"id":"p1"}`,
 			"sh/an/lecture-02": `{"id":"p2","removed":true}`,
@@ -294,26 +295,26 @@ func TestCourseDeletedLectureAlreadyInTheCourseIsNotUnlisted(t *testing.T) {
 		coll:  `{"id":"coll-1"}`,
 		items: []string{"p1", "p2"},
 	}
-	result, rec := runCourse(t, f, writeCourse(t, courseManifest), false)
+	result, rec := runCollection(t, f, writeCollection(t, collectionManifest), false)
 
 	if result.Unlisted != 0 || result.Reordered {
 		t.Errorf("unlisted=%d reordered=%v, want 0 and false", result.Unlisted, result.Reordered)
 	}
 	if strings.Contains(rec.calls(), "DELETE") {
-		t.Errorf("lt course never removes an item: %s", rec.calls())
+		t.Errorf("lt collection publish never removes an item: %s", rec.calls())
 	}
 	if want := []string{"present:", "skip:deleted", "skip:not_published"}; !slices.Equal(actions(result), want) {
-		t.Errorf("lectures = %v, want %v", actions(result), want)
+		t.Errorf("items = %v, want %v", actions(result), want)
 	}
 }
 
-// Every lecture resolves before anything is written.
-func TestCourseMissingLectureFileFailsBeforeAnyRequest(t *testing.T) {
+// Every listed work resolves before anything is written.
+func TestCollectionMissingItemFileFailsBeforeAnyRequest(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "lecture-01.md", lecture("sh/an/lecture-01"))
-	path := writeFile(t, dir, "README.md", "---\nimport_key: sh/an\ntitle: T\nlanguage: ru\nlectures: [lecture-01.md, lecture-02.md]\n---\n")
+	path := writeFile(t, dir, "README.md", "---\nimport_key: sh/an\ntitle: T\nlanguage: ru\ncollection_type: course\nitems: [lecture-01.md, lecture-02.md]\n---\n")
 
-	result, rec := runCourse(t, &courseAPI{}, path, false)
+	result, rec := runCollection(t, &collectionAPI{}, path, false)
 
 	if result.Action != actionFailed || !strings.Contains(result.Message, "lecture-02.md") {
 		t.Fatalf("result = %+v", result)
@@ -323,18 +324,20 @@ func TestCourseMissingLectureFileFailsBeforeAnyRequest(t *testing.T) {
 	}
 }
 
-func TestCourseManifestValidation(t *testing.T) {
+func TestCollectionManifestValidation(t *testing.T) {
 	cases := map[string]struct{ manifest, mention string }{
-		"no key":      {"---\ntitle: T\nlanguage: ru\n---\n", "import_key"},
-		"no title":    {"---\nimport_key: k\nlanguage: ru\n---\n", "title"},
-		"no language": {"---\nimport_key: k\ntitle: T\n---\n", "language"},
+		"no key":      {"---\ntitle: T\nlanguage: ru\ncollection_type: course\n---\n", "import_key"},
+		"no type":     {"---\nimport_key: k\ntitle: T\nlanguage: ru\n---\n", "collection_type"},
+		"bad type":    {"---\nimport_key: k\ntitle: T\nlanguage: ru\ncollection_type: syllabus\n---\n", "syllabus"},
+		"no title":    {"---\nimport_key: k\nlanguage: ru\ncollection_type: course\n---\n", "title"},
+		"no language": {"---\nimport_key: k\ntitle: T\ncollection_type: course\n---\n", "language"},
 		"publication visibility": {
-			"---\nimport_key: k\ntitle: T\nlanguage: ru\nvisibility: private\n---\n", "private"},
+			"---\nimport_key: k\ntitle: T\nlanguage: ru\ncollection_type: course\nvisibility: private\n---\n", "private"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			path := writeFile(t, t.TempDir(), "README.md", c.manifest)
-			result, rec := runCourse(t, &courseAPI{}, path, false)
+			result, rec := runCollection(t, &collectionAPI{}, path, false)
 			if result.Action != actionFailed || result.Code != "validation_error" {
 				t.Fatalf("result = %+v", result)
 			}
@@ -348,28 +351,43 @@ func TestCourseManifestValidation(t *testing.T) {
 	}
 }
 
-func TestCourseRefusesTwoLecturesWithOneKey(t *testing.T) {
+func TestCollectionRefusesTwoItemsWithOneKey(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "a.md", lecture("same"))
 	writeFile(t, dir, "b.md", lecture("same"))
-	path := writeFile(t, dir, "README.md", "---\nimport_key: k\ntitle: T\nlanguage: ru\nlectures: [a.md, b.md]\n---\n")
+	path := writeFile(t, dir, "README.md", "---\nimport_key: k\ntitle: T\nlanguage: ru\ncollection_type: course\nitems: [a.md, b.md]\n---\n")
 
-	result, _ := runCourse(t, &courseAPI{}, path, false)
+	result, _ := runCollection(t, &collectionAPI{}, path, false)
 	if result.Action != actionFailed || !strings.Contains(result.Message, "same") {
 		t.Fatalf("result = %+v", result)
 	}
 }
 
-// Lecture paths are relative to the manifest, not to the working directory.
-func TestCourseResolvesLecturesRelativeToTheManifest(t *testing.T) {
+// Item paths are relative to the manifest, not to the working directory.
+func TestCollectionResolvesItemsRelativeToTheManifest(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, filepath.Join("sh", "an", "lecture-01.md"), lecture("sh/an/lecture-01"))
 	path := writeFile(t, root, filepath.Join("sh", "an", "README.md"),
-		"---\nimport_key: sh/an\ntitle: T\nlanguage: ru\nlectures: [lecture-01.md]\n---\n")
+		"---\nimport_key: sh/an\ntitle: T\nlanguage: ru\ncollection_type: course\nitems: [lecture-01.md]\n---\n")
 
-	f := &courseAPI{pubs: map[string]string{"sh/an/lecture-01": `{"id":"p1"}`}}
-	result, _ := runCourse(t, f, path, false)
+	f := &collectionAPI{pubs: map[string]string{"sh/an/lecture-01": `{"id":"p1"}`}}
+	result, _ := runCollection(t, f, path, false)
 	if result.Action != actionCreate || !slices.Equal(f.added, []string{"p1"}) {
 		t.Fatalf("result = %+v, added = %v", result, f.added)
+	}
+}
+
+// The kind is the manifest's, not the command's: a plain collection is created
+// as one.
+func TestCollectionTypeComesFromTheManifest(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "a.md", lecture("sh/an/lecture-01"))
+	path := writeFile(t, dir, "README.md",
+		"---\nimport_key: sh/an\ntitle: T\nlanguage: ru\ncollection_type: collection\nitems: [a.md]\n---\n")
+
+	f := &collectionAPI{pubs: map[string]string{"sh/an/lecture-01": `{"id":"p1"}`}}
+	result, _ := runCollection(t, f, path, false)
+	if result.Action != actionCreate || f.created["collection_type"] != "collection" {
+		t.Fatalf("result = %+v, create body = %v", result, f.created)
 	}
 }

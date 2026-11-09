@@ -44,8 +44,10 @@ type bookAPI struct {
 	// rewrite, when set, is what the server does to a stored body.
 	rewrite func(string) string
 
-	calls         []string
-	createdPub    map[string]any
+	calls      []string
+	createdPub map[string]any
+	// pubPatches are the writes to the work row: each PATCH body, and each
+	// lifecycle verb as the `is_draft` it asks for.
 	pubPatches    []map[string]any
 	divisionWrite int
 	deleted       []string
@@ -73,7 +75,7 @@ func (f *bookAPI) handle(w http.ResponseWriter, r *http.Request) {
 	divs := "/works/" + fakeWork + "/expressions/" + fakeExpr + "/divisions"
 	path := r.URL.Path
 	switch {
-	case r.Method == http.MethodGet && path == "/publications/me/by-import-key":
+	case r.Method == http.MethodGet && path == "/works/me/by-import-key":
 		if f.pubType == "" {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -82,30 +84,38 @@ func (f *bookAPI) handle(w http.ResponseWriter, r *http.Request) {
 			"id": fakeWork, "import_key": r.URL.Query().Get("key"),
 			"is_draft": f.isDraft, "removed": f.removed,
 		})
-	case r.Method == http.MethodPost && path == "/publications":
+	case r.Method == http.MethodPost && path == "/works":
 		f.createdPub = body
-		f.pubType, f.isDraft = body["type"].(string), body["is_draft"] == true
+		f.pubType, f.isDraft = body["kind"].(string), body["is_draft"] == true
 		f.language, _ = body["language"].(string)
 		json.NewEncoder(w).Encode(map[string]any{"id": fakeWork, "is_draft": f.isDraft})
-	case r.Method == http.MethodGet && path == "/publications/"+fakeWork:
+	case r.Method == http.MethodGet && path == "/works/"+fakeWork:
 		primary := map[string]string{}
 		if f.pubType == api.TypeBook {
 			primary[f.language] = fakeExpr
 		}
 		json.NewEncoder(w).Encode(map[string]any{
-			"id": fakeWork, "type": f.pubType, "language": f.language, "is_draft": f.isDraft,
+			"id": fakeWork, "type": "book-monograph", "kind": f.pubType, "language": f.language, "is_draft": f.isDraft,
 			"primary_expression_by_language": primary,
 		})
-	case r.Method == http.MethodPatch && path == "/publications/"+fakeWork:
+	case r.Method == http.MethodPatch && path == "/works/"+fakeWork:
 		f.pubPatches = append(f.pubPatches, body)
-		if d, ok := body["is_draft"].(bool); ok {
-			if !d && f.readingUnits() == 0 {
-				w.WriteHeader(http.StatusConflict)
-				w.Write([]byte(`{"detail":"hosted but have no readable text"}`))
-				return
-			}
-			f.isDraft = d
+		if _, ok := body["is_draft"]; ok {
+			f.t.Errorf("a PATCH carried is_draft; /works changes the lifecycle by verb: %v", body)
 		}
+		json.NewEncoder(w).Encode(map[string]any{"id": fakeWork, "is_draft": f.isDraft})
+	case r.Method == http.MethodPost && path == "/works/"+fakeWork+"/publish":
+		f.pubPatches = append(f.pubPatches, map[string]any{"is_draft": false})
+		if f.readingUnits() == 0 {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`{"detail":"hosted but have no readable text"}`))
+			return
+		}
+		f.isDraft = false
+		json.NewEncoder(w).Encode(map[string]any{"id": fakeWork, "is_draft": f.isDraft})
+	case r.Method == http.MethodPost && path == "/works/"+fakeWork+"/unpublish":
+		f.pubPatches = append(f.pubPatches, map[string]any{"is_draft": true})
+		f.isDraft = true
 		json.NewEncoder(w).Encode(map[string]any{"id": fakeWork, "is_draft": f.isDraft})
 	case r.Method == http.MethodGet && path == "/works/"+fakeWork+"/contents":
 		if r.URL.Query().Get("e") != fakeExpr {
@@ -349,7 +359,7 @@ func TestBookCreateWritesTheTreeThenPublishes(t *testing.T) {
 	if result.Action != actionCreate || result.Code != "" {
 		t.Fatalf("result = %+v", result)
 	}
-	if f.createdPub["type"] != "book" || f.createdPub["is_draft"] != true ||
+	if f.createdPub["kind"] != "book" || f.createdPub["is_draft"] != true ||
 		f.createdPub["import_key"] != "ivanov/analysis-book" {
 		t.Errorf("create body = %v", f.createdPub)
 	}

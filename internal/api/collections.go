@@ -7,10 +7,11 @@ import (
 	"strconv"
 )
 
-// CollectionTypeCourse is the only collection kind lt writes. A course is the
-// ordered list of one lecture course's notes; other kinds are curated by hand in
-// the editor.
-const CollectionTypeCourse = "course"
+// CollectionTypeValues are the kinds of collection the platform has: a plain
+// curated list, a course (one lecture course's material in order), and a
+// recommendation list. Named once so validation and help text cannot drift; the
+// API is the authority.
+var CollectionTypeValues = []string{"collection", "course", "recommendation"}
 
 // CollectionVisibilityValues is a collection's visibility, which is NOT a
 // publication's: collections take the four audience levels and have no share
@@ -156,4 +157,51 @@ func (c *Client) ReorderCollection(ctx context.Context, id string, publicationID
 		EntityType string   `json:"entity_type"`
 	}{EntityIDs: publicationIDs, EntityType: "publication"}
 	return c.do(ctx, http.MethodPut, "/collections/"+url.PathEscape(id)+"/items/order", nil, body, nil)
+}
+
+// CollectionSummary is one of the caller's collections as the list and the
+// single read report it.
+type CollectionSummary struct {
+	ID              string `json:"id"`
+	Title           string `json:"title"`
+	CollectionType  string `json:"collection_type"`
+	Visibility      string `json:"visibility"`
+	PrimaryLanguage string `json:"primary_language,omitempty"`
+	ItemsCount      int    `json:"items_count"`
+	ImportKey       string `json:"import_key,omitempty"`
+}
+
+type collectionPage struct {
+	Items   []CollectionSummary `json:"items"`
+	HasMore bool                `json:"has_more"`
+}
+
+// GetCollection reads one collection.
+func (c *Client) GetCollection(ctx context.Context, id string) (*CollectionSummary, error) {
+	var out CollectionSummary
+	if err := c.Get(ctx, "/collections/"+url.PathEscape(id), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListMyCollections returns every collection the caller owns, at every
+// visibility level.
+func (c *Client) ListMyCollections(ctx context.Context) ([]CollectionSummary, error) {
+	var all []CollectionSummary
+	for offset := 0; ; {
+		var page collectionPage
+		query := url.Values{
+			"limit":  {strconv.Itoa(itemsPageLimit)},
+			"offset": {strconv.Itoa(offset)},
+		}
+		if err := c.Get(ctx, "/collections/me", query, &page); err != nil {
+			return nil, err
+		}
+		all = append(all, page.Items...)
+		offset += len(page.Items)
+		if !page.HasMore || len(page.Items) == 0 {
+			return all, nil
+		}
+	}
 }
