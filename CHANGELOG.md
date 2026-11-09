@@ -11,6 +11,21 @@ stays there, serving MCP.
 
 ### Added
 
+- `lt categories search <q>` and `lt categories resolve <term>… [--key k]…`
+  — find a category by term, and see what a term or key becomes on save
+  (TAXONOMY-INPUT, #1775). Search is loose (prefix, stem, typo, the
+  ЙЦУКЕН/QWERTY swap) and shows each hit's context, `Linear algebra —
+  Algebra · Mathematics`; resolve is exact, as a save decides. Both are
+  public reads: no sign-in needed.
+- A file's `tags` and `categories` are sent as written by `lt work publish`
+  (books included) and `lt collection publish`, and the server resolves
+  them: a term naming a category becomes it, the rest are keywords. Each
+  save prints its term report under the result line (`--json`: `terms`).
+  An unknown key in `categories` fails with what it might have meant.
+  `tags` is no longer sent as `keywords`: the server takes the terms and
+  decides (`keywords` on a collection manifest is the same input).
+  `category_ids` still works but warns, since ids differ between
+  environments.
 - `lt profile image show|set|rm` — your own profile picture. `set FILE`
   sends the original JPEG, PNG, WebP, GIF or AVIF (at most 5 MB, type read
   from the bytes); the server squares it (`--crop x,y,w,h` or `--focus x,y`),

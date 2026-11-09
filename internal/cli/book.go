@@ -62,6 +62,8 @@ type bookResult struct {
 	// Published is true when this run took the book out of draft.
 	Published bool     `json:"published,omitempty"`
 	Warnings  []string `json:"warnings,omitempty"`
+	// Terms is what the save made of the manifest's tags and categories.
+	Terms []api.TermReport `json:"terms,omitempty"`
 }
 
 func (r *bookResult) setFailure(err error) {
@@ -87,6 +89,7 @@ func renderBook(e *env, r bookResult) {
 	for _, c := range r.Contributors {
 		fmt.Fprintf(e.out, "    %-9s %-10s %s\n", c.Action, c.Role, c.Profile)
 	}
+	renderTerms(e.out, r.Terms)
 	for _, c := range append(slices.Clone(r.Chapters), r.Unlisted...) {
 		name := strings.TrimSpace(c.Label + " " + c.Title)
 		if name == "" {
@@ -308,8 +311,10 @@ func publishBook(ctx context.Context, client *api.Client, path string, opts book
 		Visibility:  meta.Visibility,
 		AIUsage:     meta.AIUsage,
 		Tags:        meta.Tags,
+		Categories:  meta.Categories,
 		CategoryIDs: meta.CategoryIDs,
 	}
+	result.Warnings = append(result.Warnings, categoryIDsWarning(meta.CategoryIDs)...)
 
 	if result.Action == actionCreate {
 		// A book is created as a draft whatever the manifest says: it has no
@@ -325,6 +330,7 @@ func publishBook(ctx context.Context, client *api.Client, path string, opts book
 			return result
 		}
 		result.PublicationID = created.ID
+		result.Terms = created.Terms
 		info, err = client.GetPublication(ctx, created.ID)
 		if err != nil {
 			result.setFailure(fmt.Errorf("created %s, but reading it back failed: %w", created.ID, err))
@@ -339,10 +345,12 @@ func publishBook(ctx context.Context, client *api.Client, path string, opts book
 			return result
 		}
 	} else {
-		if _, err := client.UpdatePublication(ctx, result.PublicationID, input); err != nil {
+		updated, err := client.UpdatePublication(ctx, result.PublicationID, input)
+		if err != nil {
 			result.setFailure(err)
 			return result
 		}
+		result.Terms = updated.Terms
 		if err := inviteMissing(ctx, client, result.PublicationID, credits); err != nil {
 			result.setFailure(err)
 			return result

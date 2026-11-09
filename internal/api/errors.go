@@ -123,9 +123,17 @@ func FromResponse(status int, body []byte, context string) *Error {
 				"up and update it instead of creating a second one.")}
 
 	case status == 422:
-		return &Error{CodeValidation, or(detail,
+		e := &Error{Code: CodeValidation, Message: or(detail,
 			"The arguments were rejected as invalid, and the API did not say "+
 				"which field or why. Re-check the field types and permitted values.")}
+		// An unknown category key is refused with what it might have meant;
+		// the message carries the suggestions so every command shows them.
+		for _, t := range termsOf(body) {
+			if hint := suggestionKeys(t.Suggestions); hint != "" {
+				e.Message += fmt.Sprintf("\n  %q: did you mean %s?", t.Term, hint)
+			}
+		}
+		return e
 
 	case status == 429:
 		return &Error{CodeRateLimited, "Rate limited. Slow down and retry after a pause."}

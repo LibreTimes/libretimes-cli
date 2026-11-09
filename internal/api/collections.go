@@ -31,7 +31,10 @@ type CollectionInput struct {
 	CollectionType  string   `json:"collection_type,omitempty"`
 	CategoryIDs     []string `json:"category_ids,omitempty"`
 	Keywords        []string `json:"keywords,omitempty"`
-	PublicComments  *bool    `json:"public_comments,omitempty"`
+	// Tags and Categories as on a work: terms resolved on save, and keys.
+	Tags           []string `json:"tags,omitempty"`
+	Categories     []string `json:"categories,omitempty"`
+	PublicComments *bool    `json:"public_comments,omitempty"`
 	// ImportKey is create-only. The update body has no such field, so the key
 	// cannot be moved once set.
 	ImportKey string `json:"import_key,omitempty"`
@@ -57,6 +60,8 @@ type Collection struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
 	ImportKey string `json:"import_key"`
+	// Terms is what the save made of the tags, keywords and categories it sent.
+	Terms []TermReport `json:"terms,omitempty"`
 }
 
 // CollectionItem is one entry in a collection. Only publications exist today.

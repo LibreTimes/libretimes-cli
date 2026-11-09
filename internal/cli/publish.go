@@ -37,6 +37,10 @@ type fileResult struct {
 	// Contributors is the byline plan for the file's `contributors`, absent
 	// when the file lists none.
 	Contributors []contributorResult `json:"contributors,omitempty"`
+	// Terms is what the save made of the file's tags and categories: each
+	// one a category or a keyword, and how it matched (TAXONOMY-INPUT T9).
+	Terms    []api.TermReport `json:"terms,omitempty"`
+	Warnings []string         `json:"warnings,omitempty"`
 }
 
 // setFailure records an error as both a stable code and a human message.
@@ -148,6 +152,9 @@ type errQuiet struct{}
 func (errQuiet) Error() string { return "" }
 
 func renderResult(e *env, r fileResult) {
+	for _, w := range r.Warnings {
+		fmt.Fprintf(e.err, "  warning  %-40s %s\n", r.ImportKey, w)
+	}
 	switch r.Action {
 	case actionFailed, actionBlocked:
 		detail := r.Message
@@ -171,6 +178,7 @@ func renderResult(e *env, r fileResult) {
 			}
 			fmt.Fprintf(e.out, "    %-8s %-10s %s%s\n", c.Action, c.Role, c.Profile, note)
 		}
+		renderTerms(e.out, r.Terms)
 	}
 }
 
@@ -221,6 +229,7 @@ func publishOne(ctx context.Context, client *api.Client, path string, dryRun boo
 	}
 
 	input := buildInput(meta, body)
+	result.Warnings = categoryIDsWarning(meta.CategoryIDs)
 
 	credits, err := resolveContributors(ctx, profiles, meta.Contributors)
 	if err != nil {
@@ -276,6 +285,7 @@ func publishOne(ctx context.Context, client *api.Client, path string, dryRun boo
 			return result
 		}
 		result.PublicationID = updated.ID
+		result.Terms = updated.Terms
 		if err := inviteMissing(ctx, client, existing.ID, credits); err != nil {
 			result.setFailure(err)
 		}
@@ -295,6 +305,7 @@ func publishOne(ctx context.Context, client *api.Client, path string, dryRun boo
 			return result
 		}
 		result.PublicationID = created.ID
+		result.Terms = created.Terms
 		return result
 	}
 }
@@ -312,6 +323,7 @@ func buildInput(meta frontmatter.Meta, body string) api.PublicationInput {
 		AIUsage:     meta.AIUsage,
 		IsDraft:     meta.IsDraft,
 		Tags:        meta.Tags,
+		Categories:  meta.Categories,
 		CategoryIDs: meta.CategoryIDs,
 	}
 }

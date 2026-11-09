@@ -152,7 +152,7 @@ func TestUnsetFieldsAreOmitted(t *testing.T) {
 		t.Fatalf("CreatePublication: %v", err)
 	}
 
-	for _, absent := range []string{"description", "license", "visibility", "ai_usage", "is_draft", "keywords"} {
+	for _, absent := range []string{"description", "license", "visibility", "ai_usage", "is_draft", "keywords", "tags", "categories"} {
 		if _, present := body[absent]; present {
 			t.Errorf("unset field %q was sent: %v", absent, body[absent])
 		}
