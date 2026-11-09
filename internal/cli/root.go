@@ -167,6 +167,7 @@ func NewRootCommand() (*cobra.Command, *env) {
 		newPublishCommand(e),
 		newCourseCommand(e),
 		newBookCommand(e),
+		newCategoriesCommand(e),
 		newVersionCommand(e),
 	)
 	return root, e

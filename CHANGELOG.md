@@ -11,6 +11,15 @@ stays there, serving MCP.
 
 ### Added
 
+- `lt categories search <q>` and `lt categories resolve <term>… [--key k]…`
+  — find a category by term, and see what a term or key becomes on save
+  (TAXONOMY-INPUT, #1775). Search is loose (prefix, stem, typo, the
+  ЙЦУКЕН/QWERTY swap) and shows each hit's context, `Linear algebra —
+  Algebra · Mathematics`; resolve is exact, as a save decides. Both are
+  public reads: no sign-in needed. Sending a file's `tags` and `categories`
+  as written, and printing the save's term report, follow in `lt publish`,
+  `lt book` and `lt collection`; tags on collections arrive with the
+  platform's collection keywords.
 - `lt auth login` — OAuth 2.1 authorization code with PKCE, catching the
   redirect on a loopback port (RFC 8252, RFC 7636).
 - `lt auth login --device` — the device authorization grant (RFC 8628), for
