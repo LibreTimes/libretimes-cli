@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -21,13 +22,27 @@ type collectionAPI struct {
 
 	// oldServer answers a create without echoing import_key, as a server that
 	// predates collection import keys does.
-	oldServer bool
-	deleted   []string
+	oldServer  bool
+	sectionSeq int
+	createKey  string // the import_key a create echoes; default sh/an
+	deleted    []string
 
 	created   map[string]any
 	patched   map[string]any
 	added     []string
 	reordered []string
+
+	// Sections, rich items and the works API (the CL5 / CL4 surface).
+	sections     []map[string]any          // current sections: id, title, position, description
+	itemExtra    map[string]map[string]any // work id -> note / section_id / expression_id on the held item
+	works        map[string]string         // GET /works/{id}
+	resolve      map[string]string         // POST /works/resolve by query
+	expressions  map[string]string         // GET /works/{id}/expressions
+	orderBody    map[string]any            // the last PUT .../items/order body
+	addedItems   []map[string]any          // full POST .../items entries
+	itemPatches  map[string]map[string]any // work id -> PATCH body
+	sectionNew   []map[string]any          // POST .../sections bodies
+	sectionPatch map[string]map[string]any // section id -> PATCH body
 }
 
 func (f *collectionAPI) handler(t *testing.T) func(w http.ResponseWriter, r *http.Request) bool {
@@ -50,10 +65,46 @@ func (f *collectionAPI) handler(t *testing.T) func(w http.ResponseWriter, r *htt
 		case r.Method == http.MethodGet && strings.HasSuffix(path, "/items"):
 			page := map[string]any{"total": len(f.items), "items": []map[string]any{}}
 			for i, id := range f.items {
-				page["items"] = append(page["items"].([]map[string]any),
-					map[string]any{"entity_type": "publication", "entity_id": id, "position": i})
+				row := map[string]any{"entity_type": "work", "entity_id": id, "position": i}
+				for k, v := range f.itemExtra[id] {
+					row[k] = v
+				}
+				page["items"] = append(page["items"].([]map[string]any), row)
 			}
 			json.NewEncoder(w).Encode(page)
+		case r.Method == http.MethodGet && path == "/collections/coll-1":
+			json.NewEncoder(w).Encode(map[string]any{"id": "coll-1", "sections": f.sections})
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/works/") && strings.HasSuffix(path, "/expressions"):
+			id := strings.TrimSuffix(strings.TrimPrefix(path, "/works/"), "/expressions")
+			body, ok := f.expressions[id]
+			if !ok {
+				body = "[]"
+			}
+			w.Write([]byte(body))
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/works/"):
+			body, ok := f.works[strings.TrimPrefix(path, "/works/")]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return true
+			}
+			w.Write([]byte(body))
+		case r.Method == http.MethodPost && path == "/works/resolve":
+			var body struct{ Query string }
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			out, ok := f.resolve[body.Query]
+			if !ok {
+				out = `{"kind":"doi"}`
+			}
+			w.Write([]byte(out))
+		case r.Method == http.MethodPost && strings.HasSuffix(path, "/sections"):
+			f.sectionSeq++
+			n := f.sectionSeq
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprintf(w, `{"id":"s-new-%d","title":"t","position":%d}`, n, n)
+		case r.Method == http.MethodPatch && strings.Contains(path, "/sections/"):
+			w.Write([]byte(`{}`))
+		case r.Method == http.MethodPatch && strings.Contains(path, "/items/work/"):
+			w.Write([]byte(`{}`))
 		case r.Method == http.MethodPost && path == "/collections":
 			if f.oldServer {
 				w.Write([]byte(`{"id":"coll-new"}`))
@@ -61,18 +112,25 @@ func (f *collectionAPI) handler(t *testing.T) func(w http.ResponseWriter, r *htt
 			}
 			// The recorder has already read the body; every manifest here uses
 			// the key sh/an, which the create must echo back.
-			w.Write([]byte(`{"id":"coll-new","import_key":"sh/an"}`))
+			key := f.createKey
+			if key == "" {
+				key = "sh/an"
+			}
+			fmt.Fprintf(w, `{"id":"coll-new","import_key":%q}`, key)
 		case r.Method == http.MethodDelete && strings.HasPrefix(path, "/collections/"):
 			f.deleted = append(f.deleted, strings.TrimPrefix(path, "/collections/"))
 			w.WriteHeader(http.StatusNoContent)
 		case r.Method == http.MethodPut && strings.HasSuffix(path, "/items/order"):
-			var body struct {
-				EntityIDs []string `json:"entity_ids"`
-			}
+			var body map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			f.reordered = body.EntityIDs
+			f.orderBody = body
+			if ids, ok := body["entity_ids"].([]any); ok {
+				for _, id := range ids {
+					f.reordered = append(f.reordered, id.(string))
+				}
+			}
 			w.Write([]byte(`{}`))
 		case r.Method == http.MethodPatch && strings.HasPrefix(path, "/collections/"):
 			w.Write([]byte(`{"id":"coll-1"}`))
@@ -100,11 +158,25 @@ func (f *collectionAPI) capture(rec *recorder) {
 		switch {
 		case method == http.MethodPost && path == "/collections":
 			f.created = body
+		case method == http.MethodPost && strings.HasSuffix(path, "/sections"):
+			f.sectionNew = append(f.sectionNew, body)
+		case method == http.MethodPatch && strings.Contains(path, "/sections/"):
+			if f.sectionPatch == nil {
+				f.sectionPatch = map[string]map[string]any{}
+			}
+			f.sectionPatch[path[strings.LastIndex(path, "/")+1:]] = body
+		case method == http.MethodPatch && strings.Contains(path, "/items/work/"):
+			if f.itemPatches == nil {
+				f.itemPatches = map[string]map[string]any{}
+			}
+			f.itemPatches[path[strings.LastIndex(path, "/")+1:]] = body
 		case method == http.MethodPatch:
 			f.patched = body
 		case method == http.MethodPost && strings.HasSuffix(path, "/items"):
 			for _, item := range body["items"].([]any) {
-				f.added = append(f.added, item.(map[string]any)["entity_id"].(string))
+				entry := item.(map[string]any)
+				f.added = append(f.added, entry["entity_id"].(string))
+				f.addedItems = append(f.addedItems, entry)
 			}
 		}
 	}
@@ -203,7 +275,7 @@ func TestCollectionUpdateAddsMissingAndRestoresOrder(t *testing.T) {
 	if !slices.Equal(f.added, []string{"p2"}) {
 		t.Errorf("added = %v, want only p2", f.added)
 	}
-	if !result.Reordered || !slices.Equal(f.reordered, []string{"p1", "p2", "p3"}) {
+	if !result.Reordered || !slices.Equal(f.reordered, []string{"p1", "extra", "p2", "p3"}) {
 		t.Errorf("reordered = %v %v", result.Reordered, f.reordered)
 	}
 	if result.Unlisted != 1 {

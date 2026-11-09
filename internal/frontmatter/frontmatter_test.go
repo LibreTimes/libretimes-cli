@@ -162,3 +162,18 @@ func TestBOMIsTolerated(t *testing.T) {
 		t.Errorf("a leading BOM stopped the frontmatter parsing: %+v", meta)
 	}
 }
+
+func TestCollectionManifestItemsAndSections(t *testing.T) {
+	src := "---\nkind: reading_list\nitems:\n  - a.md\n  - {work: 10.1/x, note: n, edition: e1}\nsections:\n  - title: S\n    items:\n      - 978-0-306-40615-7\n---\n"
+	meta, _, err := Split[CollectionMeta](src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Kind != "reading_list" || len(meta.Items) != 2 || meta.Items[0].Work != "a.md" ||
+		meta.Items[1].Note != "n" || meta.Items[1].Edition != "e1" {
+		t.Errorf("items = %+v", meta.Items)
+	}
+	if len(meta.Sections) != 1 || meta.Sections[0].Title != "S" || meta.Sections[0].Items[0].Work != "978-0-306-40615-7" {
+		t.Errorf("sections = %+v", meta.Sections)
+	}
+}
