@@ -102,6 +102,11 @@ contract: ## Check the snapshot against the live API (what contract.yml runs)
 	@curl -fsSL --max-time 60 https://api.libretimes.io/libretimes/openapi.json -o /tmp/lt-live.json
 	@python3 scripts/contract.py check /tmp/lt-live.json testdata/openapi-snapshot.json
 
+.PHONY: contract-local
+contract-local: ## Check the snapshot against a spec file, offline: make contract-local SPEC=<openapi.json>
+	@test -n "$(SPEC)" || { echo "Usage: make contract-local SPEC=<openapi.json>"; exit 2; }
+	@python3 scripts/contract.py check "$(SPEC)" testdata/openapi-snapshot.json
+
 .PHONY: clean
 clean: ## Remove build output
 	@rm -rf dist lt lt.exe
