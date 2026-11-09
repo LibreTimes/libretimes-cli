@@ -26,6 +26,16 @@ stays there, serving MCP.
   decides (`keywords` on a collection manifest is the same input).
   `category_ids` still works but warns, since ids differ between
   environments.
+- `lt work cite WORK` — the citation of a work as CSL-JSON, from the
+  platform's own builder: `--edition ID` cites one printing (publisher, year,
+  ISBN, series), `--volume N` one tome of it, `--lang` picks the edition a
+  reader would be shown. A public work needs no sign-in; pipe it to pandoc
+  for BibTeX.
+- `lt work record FILE` — add a book (or any work) you did not write, from a
+  YAML/JSON file in the public API's shape. You are shown as "added by", every
+  edition is listed only, and a DOI or ISBN the catalogue already holds
+  returns that record instead of a copy. `--dry-run` checks the file; a write
+  needs `--yes`.
 - `lt profile image show|set|rm` — your own profile picture. `set FILE`
   sends the original JPEG, PNG, WebP, GIF or AVIF (at most 5 MB, type read
   from the bytes); the server squares it (`--crop x,y,w,h` or `--focus x,y`),

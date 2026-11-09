@@ -110,6 +110,8 @@ lt work suggest WORK --old … --new …      suggest an edit to a work you can 
 lt work review WORK                       the open suggestions and errata on your work, with changes
 lt work accept WORK ID... -m …            apply suggestions as one version (errata: mark fixed)
 lt work reject WORK ID...                 turn them down
+lt work cite WORK [--edition ID [--volume N]]  the work's citation as CSL-JSON, built from the edition
+lt work record FILE --yes                 add a book you did not write (listed only; a held DOI/ISBN returns that record)
 lt work attachments add WORK FILE...      attach files to a work
 lt work attachments ls WORK
 lt work attachments rm WORK NAME|ID...

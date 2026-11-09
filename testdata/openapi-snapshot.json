@@ -170,7 +170,7 @@
     },
     "/libretimes/v1/collections/me/by-import-key": {
       "get": {
-        "description": "Find the caller's own collection carrying this `import_key`.\n\nThe lookup `lt course` does before deciding create-or-update, the same way\n`/publications/me/by-import-key` serves `lt publish`. Owner-scoped: a 404\nmeans \"you have not imported this\". `relay_response`, not the card\nenrichment -- the shape carries nothing to resolve.",
+        "description": "Find the caller's own collection carrying this `import_key`.\n\nThe lookup `lt course` does before deciding create-or-update, the same way\n`/works/me/by-import-key` serves `lt publish`. Owner-scoped: a 404\nmeans \"you have not imported this\". `relay_response`, not the card\nenrichment -- the shape carries nothing to resolve.",
         "operationId": "my_collection_by_import_key_libretimes_v1_collections_me_by_import_key_get",
         "parameters": [
           {
@@ -741,11 +741,308 @@
         ]
       }
     },
-    "/libretimes/v1/publications": {
+    "/libretimes/v1/works": {
       "get": {
-        "description": "The public listing, paged. Takes either `offset` (the numbered-page\ncontrol the web listing renders) or `cursor` (load-more / infinite clients);\nthe response carries both keys either way. See\ndocs/architecture/pagination.md.\n\n**The same rows for everyone, signed in or not.** No viewer is forwarded, so\nan author browsing here -- including their own profile's publications tab,\nwhich is this route under `author_id` -- sees the public listing exactly as a\nstranger does. Their `private` and `by_link` work lives on\n`/publications/me`.",
-        "operationId": "list_publications_libretimes_v1_publications_get",
+        "description": "The corpus: every publicly listed hosted text, book and external\nrecord, paged -- the same for a signed-in caller as for a stranger; the\ncaller's own drafts and private works are `/works/me`. `recent` is newest first; `top` is pure score (up - down).\nTakes either `offset` or `cursor`; the response carries both keys either\nway (docs/architecture/pagination.md).",
+        "operationId": "list_works_libretimes_v1_works_get",
         "parameters": [
+          {
+            "description": "A kind (`lecture`, `problems`, ...) or a world type (`journal-article`, ...); repeat it for any of several",
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A kind (`lecture`, `problems`, ...) or a world type (`journal-article`, ...); repeat it for any of several",
+              "title": "Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "description": "Only works tagged with this category",
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only works tagged with this category",
+              "title": "Category Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "full_text",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "here",
+                    "source",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Full Text"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "description": "Owned by or affiliated with this organization",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Owned by or affiliated with this organization",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "description": "Only works added here in the last week or month",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "week",
+                    "month"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only works added here in the last week or month",
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "recent",
+              "enum": [
+                "recent",
+                "top"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Explore's direction; absent is all",
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "science",
+                    "education",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Explore's direction; absent is all",
+              "title": "Direction"
+            }
+          },
+          {
+            "description": "Open access (or hosted here), or harvested as closed",
+            "in": "query",
+            "name": "access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "open",
+                    "closed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Open access (or hosted here), or harvested as closed",
+              "title": "Access"
+            }
+          },
+          {
+            "description": "Leave out works that no longer stand",
+            "in": "query",
+            "name": "standing",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Leave out works that no longer stand",
+              "title": "Standing",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Any of these licences",
+            "in": "query",
+            "name": "license",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Any of these licences",
+              "title": "License"
+            }
+          },
+          {
+            "description": "Any of these genres",
+            "in": "query",
+            "name": "genre",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Any of these genres",
+              "title": "Genre"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year To"
+            }
+          },
           {
             "description": "Rows to skip. Ignored when `cursor` is set.",
             "in": "query",
@@ -790,123 +1087,6 @@
               "description": "Opaque cursor from a previous response's `next_cursor`. Takes precedence over `offset`.",
               "title": "Cursor"
             }
-          },
-          {
-            "in": "query",
-            "name": "search",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Search"
-            }
-          },
-          {
-            "in": "query",
-            "name": "category_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Category Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "author_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Author Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "type",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/PublicationType"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Type"
-            }
-          },
-          {
-            "in": "query",
-            "name": "language",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Language"
-            }
-          },
-          {
-            "in": "query",
-            "name": "max_ai_usage",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/AIUsage"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Max Ai Usage"
-            }
-          },
-          {
-            "description": "Only publications created at or after this instant",
-            "in": "query",
-            "name": "created_after",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Only publications created at or after this instant",
-              "title": "Created After"
-            }
           }
         ],
         "responses": {
@@ -914,46 +1094,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicationPage"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Publications",
-        "tags": [
-          "publications"
-        ]
-      },
-      "post": {
-        "operationId": "create_publication_libretimes_v1_publications_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublicationCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicationOut"
+                  "$ref": "#/components/schemas/WorkPage"
                 }
               }
             },
@@ -975,16 +1116,99 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Create Publication",
+        "summary": "List Works",
         "tags": [
-          "publications"
+          "works"
+        ]
+      },
+      "post": {
+        "description": "A text written here (`origin: hosted`, a draft or published at once), or\na record of a work published elsewhere (`origin: external`). An external\nrecord whose identifier works-service already holds claims that record\ninstead of minting a duplicate; provenance is decided downstream, never\nby the client. With an `Idempotency-Key`, a repeat of the same create --\na second click, a retry after a timeout -- answers with the work the first\none made instead of minting another (#96).",
+        "operationId": "create_work_libretimes_v1_works_post",
+        "parameters": [
+          {
+            "description": "One per create attempt. A repeat with the same key and body answers with the work the first request made, instead of creating another; the same key with a different body is a 422. Kept for a day.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[\\x21-\\x7e]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One per create attempt. A repeat with the same key and body answers with the work the first request made, instead of creating another; the same key with a different body is a 422. Kept for a day.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "external": "#/components/schemas/ExternalCreate",
+                    "hosted": "#/components/schemas/HostedCreate"
+                  },
+                  "propertyName": "origin"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/HostedCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ExternalCreate"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Work",
+        "tags": [
+          "works"
         ]
       }
     },
-    "/libretimes/v1/publications/me/by-import-key": {
+    "/libretimes/v1/works/me/by-import-key": {
       "get": {
-        "description": "Find the caller's own publication carrying this `import_key`.\n\nThe lookup an importer does before deciding create-or-update, and the only\npublic read that reports the caller's `removed` and draft rows. Those are\nexactly the rows whose keys still occupy the unique index, so an importer\nthat cannot see them creates and takes a 409 that repeats forever (#663).\n\nOwner-scoped, so reporting a soft-deleted row leaks nothing: the caller is\nits author. Not merged into `/publications/me` -- one query parameter should\nnot change which rows an endpoint may reveal.\n\n`relay_response`, not `relay_with_authors`: the shape carries no byline to\nenrich.",
-        "operationId": "my_publication_by_import_key_libretimes_v1_publications_me_by_import_key_get",
+        "description": "Find the caller's own work carrying this `import_key`, removed and draft\nrows included -- exactly the rows whose keys still occupy the unique index,\nso an importer that cannot see them creates and takes a 409 that repeats\nforever (#663). Owner-scoped, so reporting a removed row leaks nothing.",
+        "operationId": "my_work_by_import_key_libretimes_v1_works_me_by_import_key_get",
         "parameters": [
           {
             "description": "The import_key a previous import wrote on the row",
@@ -1005,7 +1229,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicationImportRef"
+                  "$ref": "#/components/schemas/ImportRef"
                 }
               }
             },
@@ -1027,33 +1251,32 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "My Publication By Import Key",
+        "summary": "My Work By Import Key",
         "tags": [
-          "publications"
+          "works"
         ]
       }
     },
-    "/libretimes/v1/publications/{pub_id}": {
-      "delete": {
-        "operationId": "delete_publication_libretimes_v1_publications__pub_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pub_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Pub Id",
-              "type": "string"
+    "/libretimes/v1/works/resolve": {
+      "post": {
+        "description": "What the door found: a work we hold (and whether the caller may claim\nit), a record resolved at its source for the form to open on, or title\nmatches.",
+        "operationId": "resolve_work_libretimes_v1_works_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
+                  "$ref": "#/components/schemas/ResolveResult"
                 }
               }
             },
@@ -1075,26 +1298,69 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Delete Publication",
+        "summary": "Resolve Work",
         "tags": [
-          "publications"
+          "works"
         ]
-      },
-      "get": {
-        "operationId": "get_publication_libretimes_v1_publications__pub_id__get",
+      }
+    },
+    "/libretimes/v1/works/{work_id}": {
+      "delete": {
+        "description": "Delete by tier: living content and drafts delete; a record deletes only\nas a draft or in its grace period, else 409 (withdraw it instead); on an\nexternal record it removes the caller's claim, never the record.",
+        "operationId": "delete_work_libretimes_v1_works__work_id__delete",
         "parameters": [
           {
             "in": "path",
-            "name": "pub_id",
+            "name": "work_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Pub Id",
+              "title": "Work Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Work",
+        "tags": [
+          "works"
+        ]
+      },
+      "get": {
+        "description": "One work: the head row, the served text, the byline, the status. A\nmanager of the owning organization reads a private or draft work the way\nan owner does; an anonymous caller skips that probe.",
+        "operationId": "get_work_libretimes_v1_works__work_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
               "type": "string"
             }
           },
           {
-            "description": "Share-link token for a by_link publication",
+            "description": "Share-link token for a by_link work",
             "in": "query",
             "name": "token",
             "required": false,
@@ -1107,12 +1373,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Share-link token for a by_link publication",
+              "description": "Share-link token for a by_link work",
               "title": "Token"
             }
           },
           {
-            "description": "Content language to serve. Relayed as-is; publications-service answers with `content_language`, and an unknown or unpublished value is echoed back for the frontend to redirect, never a 422.",
+            "description": "Content language to serve. Relayed as-is; works-service answers with `content_language`, and an unknown or unpublished value is echoed back for the frontend to redirect, never a 422.",
             "in": "query",
             "name": "lang",
             "required": false,
@@ -1127,7 +1393,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Content language to serve. Relayed as-is; publications-service answers with `content_language`, and an unknown or unpublished value is echoed back for the frontend to redirect, never a 422.",
+              "description": "Content language to serve. Relayed as-is; works-service answers with `content_language`, and an unknown or unpublished value is echoed back for the frontend to redirect, never a 422.",
               "title": "Lang"
             }
           }
@@ -1137,7 +1403,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicationOut"
+                  "$ref": "#/components/schemas/WorkOut"
                 }
               }
             },
@@ -1159,21 +1425,22 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Get Publication",
+        "summary": "Get Work",
         "tags": [
-          "publications"
+          "works"
         ]
       },
       "patch": {
-        "operationId": "update_publication_libretimes_v1_publications__pub_id__patch",
+        "description": "Edit a work -- a draft's autosave, a published text's next version, an\nexternal record's metadata. Lifecycle is not here: see /publish,\n/unpublish and /status.",
+        "operationId": "update_work_libretimes_v1_works__work_id__patch",
         "parameters": [
           {
             "in": "path",
-            "name": "pub_id",
+            "name": "work_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Pub Id",
+              "title": "Work Id",
               "type": "string"
             }
           }
@@ -1182,7 +1449,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PublicationUpdate"
+                "$ref": "#/components/schemas/WorkUpdate"
               }
             }
           },
@@ -1193,7 +1460,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicationOut"
+                  "$ref": "#/components/schemas/WorkOut"
                 }
               }
             },
@@ -1215,24 +1482,24 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Update Publication",
+        "summary": "Update Work",
         "tags": [
-          "publications"
+          "works"
         ]
       }
     },
-    "/libretimes/v1/publications/{pub_id}/authors": {
+    "/libretimes/v1/works/{work_id}/authors": {
       "get": {
-        "description": "The full byline including pending invitations. Restricted downstream to\npeople already on it.",
-        "operationId": "list_authors_libretimes_v1_publications__pub_id__authors_get",
+        "description": "The full byline, pending and declined rows included -- for the people\nalready on it, who manage it. Anyone else gets 404.",
+        "operationId": "list_authors_libretimes_v1_works__work_id__authors_get",
         "parameters": [
           {
             "in": "path",
-            "name": "pub_id",
+            "name": "work_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Pub Id",
+              "title": "Work Id",
               "type": "string"
             }
           }
@@ -1243,9 +1510,9 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/PublicationAuthorOut"
+                    "$ref": "#/components/schemas/BylineEntry"
                   },
-                  "title": "Response List Authors Libretimes V1 Publications  Pub Id  Authors Get",
+                  "title": "Response List Authors Libretimes V1 Works  Work Id  Authors Get",
                   "type": "array"
                 }
               }
@@ -1270,19 +1537,20 @@
         ],
         "summary": "List Authors",
         "tags": [
-          "authors"
+          "works"
         ]
       },
       "post": {
-        "operationId": "invite_author_libretimes_v1_publications__pub_id__authors_post",
+        "description": "Name someone on the byline: credited at once when they have no\naccount or are a connection of the caller, asked otherwise.",
+        "operationId": "invite_author_libretimes_v1_works__work_id__authors_post",
         "parameters": [
           {
             "in": "path",
-            "name": "pub_id",
+            "name": "work_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Pub Id",
+              "title": "Work Id",
               "type": "string"
             }
           }
@@ -1291,7 +1559,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PublicationAuthorInvite"
+                "$ref": "#/components/schemas/BylineInvite"
               }
             }
           },
@@ -1302,7 +1570,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicationAuthorOut"
+                  "$ref": "#/components/schemas/BylineEntry"
                 }
               }
             },
@@ -1326,7 +1594,7 @@
         ],
         "summary": "Invite Author",
         "tags": [
-          "authors"
+          "works"
         ]
       }
     },
@@ -1432,7 +1700,133 @@
         ],
         "summary": "Get Contents",
         "tags": [
-          "books",
+          "books"
+        ]
+      }
+    },
+    "/libretimes/v1/works/{work_id}/expressions": {
+      "get": {
+        "operationId": "list_expressions_libretimes_v1_works__work_id__expressions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Share-link token for a by_link book",
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Share-link token for a by_link book",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpressionDetailOut"
+                  },
+                  "title": "Response List Expressions Libretimes V1 Works  Work Id  Expressions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Expressions",
+        "tags": [
+          "books"
+        ]
+      },
+      "post": {
+        "description": "A translation, unpublished, with the original's contents and no text.",
+        "operationId": "create_translation_libretimes_v1_works__work_id__expressions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpressionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpressionDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Translation",
+        "tags": [
           "books"
         ]
       }
@@ -1502,7 +1896,6 @@
         ],
         "summary": "Create Division",
         "tags": [
-          "books",
           "books"
         ]
       }
@@ -1565,7 +1958,6 @@
         ],
         "summary": "Delete Division",
         "tags": [
-          "books",
           "books"
         ]
       },
@@ -1633,7 +2025,6 @@
         ],
         "summary": "Get Division For Edit",
         "tags": [
-          "books",
           "books"
         ]
       },
@@ -1711,7 +2102,6 @@
         ],
         "summary": "Update Division",
         "tags": [
-          "books",
           "books"
         ]
       }
@@ -1791,7 +2181,6 @@
         ],
         "summary": "Move Division",
         "tags": [
-          "books",
           "books"
         ]
       }
@@ -1808,6 +2197,44 @@
       ],
       "title": "AIUsage",
       "type": "string"
+    },
+    "AbstractSection": {
+      "description": "One labelled section of a structured abstract (#1387): the label as\nthe source printed it, the NLM category it maps to, its text. A page\nrenders a bold label, then the paragraph; `abstract` stays the flat\ntext for meta tags and cards.",
+      "properties": {
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Label"
+        },
+        "nlm_category": {
+          "enum": [
+            "BACKGROUND",
+            "OBJECTIVE",
+            "METHODS",
+            "RESULTS",
+            "CONCLUSIONS",
+            "UNASSIGNED"
+          ],
+          "title": "Nlm Category",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nlm_category",
+        "text"
+      ],
+      "title": "AbstractSection",
+      "type": "object"
     },
     "AddItemsRequest": {
       "properties": {
@@ -1923,22 +2350,13 @@
       "type": "object"
     },
     "AuthorAccess": {
-      "description": "What a byline entry may do to the publication. Mirrors\npublications-service; see its app/schemas/common.py for the ladder.",
+      "description": "What a byline entry may do to the work: credited < editor < owner.",
       "enum": [
         "credited",
         "editor",
         "owner"
       ],
       "title": "AuthorAccess",
-      "type": "string"
-    },
-    "AuthorStatus": {
-      "enum": [
-        "pending",
-        "accepted",
-        "declined"
-      ],
-      "title": "AuthorStatus",
       "type": "string"
     },
     "AuthorSummary": {
@@ -1975,6 +2393,17 @@
             }
           ],
           "title": "Given Name"
+        },
+        "link_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Link Language"
         },
         "middle_name": {
           "anyOf": [
@@ -2059,7 +2488,7 @@
       "type": "string"
     },
     "BodyFormat": {
-      "description": "What a face's text is: markdown, or a file published as itself.\nMirrors publications-service's `BodyFormat` (scripts/check-enum-parity.py).",
+      "description": "What a face's text is: markdown, or a file published as itself.\nMirrors works-service's `BodyFormat` (scripts/check-enum-parity.py).",
       "enum": [
         "markdown",
         "pdf",
@@ -2098,8 +2527,205 @@
       "title": "BuyLinkOut",
       "type": "object"
     },
+    "BylineEntry": {
+      "description": "One name on a work: linked to a profile or not. `author` is the\nprofile's card, resolved here; null when the entry links nobody or\nprofile-service could not be reached.",
+      "properties": {
+        "access": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorAccess"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "affiliation_raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliation Raw"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consent": {
+          "$ref": "#/components/schemas/Consent"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "invited_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Invited At"
+        },
+        "invited_by": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Invited By"
+        },
+        "is_corresponding": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Corresponding"
+        },
+        "position": {
+          "title": "Position",
+          "type": "integer"
+        },
+        "profile_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile Id"
+        },
+        "responded_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responded At"
+        },
+        "role": {
+          "$ref": "#/components/schemas/ContributorRole",
+          "default": "author"
+        },
+        "ror_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ror Id"
+        }
+      },
+      "required": [
+        "position",
+        "consent"
+      ],
+      "title": "BylineEntry",
+      "type": "object"
+    },
+    "BylineInvite": {
+      "description": "One name to put on a byline, as a client asks for it.\n\nDeliberately narrower than works-service's shape, which also carries\n`account_less` and `connected` -- the assertions that the invitee has no\naccount, or is a connection of the inviter, and so is credited without an\nanswer. A client must not be able to say either: that would be\nattribution without consent. This tier decides both, off profile-service\nand social-service, and stamps them on the forwarded body.",
+      "properties": {
+        "access": {
+          "$ref": "#/components/schemas/AuthorAccess",
+          "default": "credited"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Position"
+        },
+        "profile_id": {
+          "format": "uuid",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/components/schemas/ContributorRole",
+          "default": "author"
+        }
+      },
+      "required": [
+        "profile_id"
+      ],
+      "title": "BylineInvite",
+      "type": "object"
+    },
+    "BylineName": {
+      "description": "One entry of an external record's author list, as its editor saves it.",
+      "properties": {
+        "display_name": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "profile_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile Id"
+        }
+      },
+      "required": [
+        "display_name"
+      ],
+      "title": "BylineName",
+      "type": "object"
+    },
     "CategorySimple": {
-      "description": "Lightweight category projection embedded in publication and work reads.\n`id` is the categories-service UUID; the BFF resolves `key` and the name on\nread. `key` is the /categories/<key> URL segment.",
+      "description": "Lightweight category projection embedded in reads. `id` is the\ncategories-service UUID; the BFF resolves `key` and the name on read.\n`key` is the /categories/<key> URL segment.",
       "properties": {
         "id": {
           "format": "uuid",
@@ -2156,6 +2782,61 @@
       ],
       "title": "CitationType",
       "type": "string"
+    },
+    "CitedIn": {
+      "description": "Where the citing text cites a reference: \"§ 72\", \"Translator's\nintroduction\". `ref` is the division's canonical reference in a book, when\nit has one (`/works/<id>/ref/<ref>`).",
+      "properties": {
+        "label": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ref"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "CitedIn",
+      "type": "object"
+    },
+    "CitedStatus": {
+      "properties": {
+        "record_status": {
+          "enum": [
+            "active",
+            "corrected",
+            "expression_of_concern",
+            "withdrawn",
+            "retracted",
+            "removed",
+            "taken_down"
+          ],
+          "title": "Record Status",
+          "type": "string"
+        },
+        "via_published_version": {
+          "default": false,
+          "title": "Via Published Version",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "record_status"
+      ],
+      "title": "CitedStatus",
+      "type": "object"
     },
     "CollectionCreate": {
       "properties": {
@@ -2508,7 +3189,7 @@
       "type": "object"
     },
     "CollectionItem": {
-      "description": "One entry, in `position` order.\n\n`title` is resolved from the owning service. It is null for an entity that\nservice no longer has -- a removed publication leaves the item in place\nrather than silently vanishing from someone's reading list.",
+      "description": "One entry, in `position` order.\n\n`title` is resolved from the owning service. It is null for an entity that\nservice no longer has, or the reader may no longer see -- a removed work\nleaves the item in place rather than silently vanishing from someone's\nreading list.\n\n`work` is the same card the work listings carry, hydrated the same way, so\nthe contents list draws the shared `WorkCard` with no adapter. Null exactly\nwhen `title` is.",
       "properties": {
         "entity_id": {
           "format": "uuid",
@@ -2516,7 +3197,7 @@
           "type": "string"
         },
         "entity_type": {
-          "const": "publication",
+          "const": "work",
           "title": "Entity Type",
           "type": "string"
         },
@@ -2545,6 +3226,16 @@
             }
           ],
           "title": "Title"
+        },
+        "work": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/WorkCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2992,6 +3683,17 @@
       "title": "CollectionUpdate",
       "type": "object"
     },
+    "Consent": {
+      "description": "Where a named person stands: asked (`pending`), agreed (`accepted`),\nsaid no (`declined`), or credited without being asked -- a profile with\nno account, or a connection of the person who named them.",
+      "enum": [
+        "pending",
+        "accepted",
+        "declined",
+        "credited"
+      ],
+      "title": "Consent",
+      "type": "string"
+    },
     "ContentLanguage": {
       "description": "Relayed verbatim from the domain service.\n\nThe contract is `docs/architecture/content-language.md`. The BFF neither\ncomputes nor reshapes any member of it: `served`, `available` and `primary`\nare the domain service's answers, and the frontend reads its canonical, its\nhreflang set and its redirect decision from them. Recomputing any of it here\nwould fork the resolver, and the two copies would disagree the first time a\nfield fell back.",
       "properties": {
@@ -3089,7 +3791,7 @@
       "type": "object"
     },
     "ContributorRole": {
-      "description": "How a byline entry contributed -- the contribution axis, kept apart\nfrom `AuthorAccess` (rights). Mirrors publications-service; held to it by\nscripts/check-enum-parity.py. The frontend renders `author` in the run-in\nbyline and every other value as a credit after it (\"Compiled by ...\").",
+      "description": "How a byline entry contributed -- the contribution axis, apart from\n`AuthorAccess` (rights). `author` renders in the run-in byline and every\nother value as a credit after it (\"Lectures by ...\").",
       "enum": [
         "author",
         "advisor",
@@ -3100,6 +3802,30 @@
       ],
       "title": "ContributorRole",
       "type": "string"
+    },
+    "Cover": {
+      "description": "The cover ladder (WORK-PAGE-PLAN 2b): the author's upload, the primary\nedition's cover, or a hosted PDF's rendered first page. An attachment's\n`src` is the product-origin `/a/<id>` path, audience-checked per request.",
+      "properties": {
+        "source": {
+          "enum": [
+            "author",
+            "edition",
+            "first_page"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "src": {
+          "title": "Src",
+          "type": "string"
+        }
+      },
+      "required": [
+        "src",
+        "source"
+      ],
+      "title": "Cover",
+      "type": "object"
     },
     "DivisionCreate": {
       "properties": {
@@ -3463,6 +4189,7 @@
         "body_md": {
           "anyOf": [
             {
+              "maxLength": 2000000,
               "type": "string"
             },
             {
@@ -3470,6 +4197,18 @@
             }
           ],
           "title": "Body Md"
+        },
+        "correction_ref": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Correction Ref"
         },
         "first_line": {
           "anyOf": [
@@ -3521,6 +4260,18 @@
           ],
           "title": "Label"
         },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
         "ref": {
           "anyOf": [
             {
@@ -3547,6 +4298,56 @@
         }
       },
       "title": "DivisionUpdate",
+      "type": "object"
+    },
+    "ExpressionCreate": {
+      "description": "A translation of a book written here: a second text with a copy of\nthe original's contents and none of its words (AUTHORED-BOOKS step 6).",
+      "properties": {
+        "label": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Label",
+          "type": "string"
+        },
+        "language": {
+          "maxLength": 10,
+          "minLength": 2,
+          "title": "Language",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "translator_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Translator Ids"
+        }
+      },
+      "required": [
+        "language"
+      ],
+      "title": "ExpressionCreate",
       "type": "object"
     },
     "ExpressionCreditOut": {
@@ -3584,9 +4385,315 @@
       "title": "ExpressionCreditOut",
       "type": "object"
     },
+    "ExpressionDetailOut": {
+      "description": "The expressions section and the reader's switcher: the row plus what\nneeds a query upstream.",
+      "properties": {
+        "bbk": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bbk"
+        },
+        "buy_links": {
+          "items": {
+            "$ref": "#/components/schemas/BuyLinkOut"
+          },
+          "title": "Buy Links",
+          "type": "array"
+        },
+        "cover_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Url"
+        },
+        "credits": {
+          "items": {
+            "$ref": "#/components/schemas/ExpressionCreditOut"
+          },
+          "title": "Credits",
+          "type": "array"
+        },
+        "first_reading_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Reading Number"
+        },
+        "has_text": {
+          "default": false,
+          "title": "Has Text",
+          "type": "boolean"
+        },
+        "hosted": {
+          "title": "Hosted",
+          "type": "boolean"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_primary": {
+          "default": false,
+          "title": "Is Primary",
+          "type": "boolean"
+        },
+        "isbn13": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Isbn13"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "language_name": {
+          "default": "",
+          "title": "Language Name",
+          "type": "string"
+        },
+        "page_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Page Count"
+        },
+        "pages": {
+          "default": 0,
+          "title": "Pages",
+          "type": "integer"
+        },
+        "pdf_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pdf Attachment Id"
+        },
+        "publisher": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher"
+        },
+        "publisher_org": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/OrganizationCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publisher_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher Org Id"
+        },
+        "reading_units": {
+          "default": 0,
+          "title": "Reading Units",
+          "type": "integer"
+        },
+        "rights": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/RightsOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Series Number"
+        },
+        "series_org": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/OrganizationCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Series Org Id"
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Url"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subtitle"
+        },
+        "text_access": {
+          "$ref": "#/components/schemas/TextAccessOut"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "typography": {
+          "enum": [
+            "prose",
+            "document"
+          ],
+          "title": "Typography",
+          "type": "string"
+        },
+        "udc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Udc"
+        },
+        "untitled": {
+          "default": false,
+          "title": "Untitled",
+          "type": "boolean"
+        },
+        "work_id": {
+          "format": "uuid",
+          "title": "Work Id",
+          "type": "string"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "required": [
+        "id",
+        "work_id",
+        "label",
+        "language",
+        "source_name",
+        "typography",
+        "hosted"
+      ],
+      "title": "ExpressionDetailOut",
+      "type": "object"
+    },
     "ExpressionOut": {
       "description": "One expression as the work read carries it: a translation, an edition.",
       "properties": {
+        "bbk": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bbk"
+        },
         "buy_links": {
           "items": {
             "$ref": "#/components/schemas/BuyLinkOut"
@@ -3640,6 +4747,17 @@
           "title": "Language",
           "type": "string"
         },
+        "page_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Page Count"
+        },
         "pdf_attachment_id": {
           "anyOf": [
             {
@@ -3652,11 +4770,6 @@
           ],
           "title": "Pdf Attachment Id"
         },
-        "publication_id": {
-          "format": "uuid",
-          "title": "Publication Id",
-          "type": "string"
-        },
         "publisher": {
           "anyOf": [
             {
@@ -3668,6 +4781,28 @@
           ],
           "title": "Publisher"
         },
+        "publisher_org": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/OrganizationCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publisher_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher Org Id"
+        },
         "rights": {
           "anyOf": [
             {
@@ -3677,6 +4812,39 @@
               "type": "null"
             }
           ]
+        },
+        "series_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Series Number"
+        },
+        "series_org": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/OrganizationCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Series Org Id"
         },
         "source_name": {
           "title": "Source Name",
@@ -3723,10 +4891,26 @@
           "title": "Typography",
           "type": "string"
         },
+        "udc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Udc"
+        },
         "untitled": {
           "default": false,
           "title": "Untitled",
           "type": "boolean"
+        },
+        "work_id": {
+          "format": "uuid",
+          "title": "Work Id",
+          "type": "string"
         },
         "year": {
           "anyOf": [
@@ -3742,7 +4926,7 @@
       },
       "required": [
         "id",
-        "publication_id",
+        "work_id",
         "label",
         "language",
         "source_name",
@@ -3750,6 +4934,269 @@
         "hosted"
       ],
       "title": "ExpressionOut",
+      "type": "object"
+    },
+    "ExternalCreate": {
+      "description": "A record of a work published elsewhere, added by a person. An\nidentifier works-service already holds claims that record instead of\nminting a duplicate. Provenance is decided here, never by the client.",
+      "properties": {
+        "abstract": {
+          "anyOf": [
+            {
+              "maxLength": 20000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Abstract"
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Arxiv Id"
+        },
+        "authors": {
+          "items": {
+            "$ref": "#/components/schemas/BylineName"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "category_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 25,
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "container_title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Container Title"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Doi"
+        },
+        "genres": {
+          "items": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "title": "Genres",
+          "type": "array"
+        },
+        "is_draft": {
+          "default": false,
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issue"
+        },
+        "keywords": {
+          "items": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Keywords",
+          "type": "array"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Language"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "maxLength": 60,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "License"
+        },
+        "openalex_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Openalex Id"
+        },
+        "origin": {
+          "const": "external",
+          "default": "external",
+          "title": "Origin",
+          "type": "string"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pages"
+        },
+        "pmid": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pmid"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/components/schemas/WorkReferenceIn"
+          },
+          "maxItems": 500,
+          "title": "References",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/components/schemas/WorkType"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        },
+        "visibility": {
+          "$ref": "#/components/schemas/Visibility",
+          "default": "public"
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Volume"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100.0,
+              "minimum": 1000.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "required": [
+        "type",
+        "title"
+      ],
+      "title": "ExternalCreate",
+      "type": "object"
+    },
+    "FullText": {
+      "description": "Where the text can be read: `here`, at the `source` (a free copy), or `none`.",
+      "properties": {
+        "state": {
+          "enum": [
+            "here",
+            "source",
+            "none"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "FullText",
       "type": "object"
     },
     "HTTPValidationError": {
@@ -3763,6 +5210,296 @@
         }
       },
       "title": "HTTPValidationError",
+      "type": "object"
+    },
+    "HostedCreate": {
+      "description": "A text written here: a draft, or published at once.",
+      "properties": {
+        "affiliated_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliated Org Id"
+        },
+        "ai_usage": {
+          "$ref": "#/components/schemas/AIUsage",
+          "default": "none"
+        },
+        "attachment_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attachment Ids"
+        },
+        "authors": {
+          "items": {
+            "$ref": "#/components/schemas/BylineInvite"
+          },
+          "maxItems": 25,
+          "title": "Authors",
+          "type": "array"
+        },
+        "body_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Attachment Id"
+        },
+        "body_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BodyFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 25,
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "content": {
+          "default": "",
+          "maxLength": 2000000,
+          "title": "Content",
+          "type": "string"
+        },
+        "cover_image_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Image Id"
+        },
+        "creator_role": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContributorRole"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "genres": {
+          "items": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "title": "Genres",
+          "type": "array"
+        },
+        "import_key": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Import Key"
+        },
+        "is_draft": {
+          "default": false,
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "keywords": {
+          "items": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Keywords",
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/components/schemas/WorkKind"
+        },
+        "language": {
+          "default": "en",
+          "maxLength": 256,
+          "title": "Language",
+          "type": "string"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/License"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "markdown_view_state": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/MarkdownViewState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin": {
+          "const": "hosted",
+          "default": "hosted",
+          "title": "Origin",
+          "type": "string"
+        },
+        "original_author": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Author"
+        },
+        "owner_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Owner Org Id"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place"
+        },
+        "primary_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PrimaryFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/Reference"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "References"
+        },
+        "thesis_level": {
+          "anyOf": [
+            {
+              "enum": [
+                "course",
+                "bachelor",
+                "master",
+                "phd",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Thesis Level"
+        },
+        "title": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        },
+        "visibility": {
+          "$ref": "#/components/schemas/Visibility",
+          "default": "public"
+        }
+      },
+      "required": [
+        "kind",
+        "title"
+      ],
+      "title": "HostedCreate",
       "type": "object"
     },
     "IconName": {
@@ -3814,6 +5551,95 @@
       "title": "IconName",
       "type": "string"
     },
+    "ImportRef": {
+      "description": "What an importer needs to decide create-or-update -- including a\nremoved row, whose key still occupies the unique index (#663).",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "import_key": {
+          "title": "Import Key",
+          "type": "string"
+        },
+        "is_draft": {
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "removed": {
+          "title": "Removed",
+          "type": "boolean"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "import_key",
+        "title",
+        "is_draft",
+        "removed",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "ImportRef",
+      "type": "object"
+    },
+    "IndexedIn": {
+      "properties": {
+        "evidence_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Evidence Url"
+        },
+        "first_seen_at": {
+          "format": "date-time",
+          "title": "First Seen At",
+          "type": "string"
+        },
+        "index_name": {
+          "title": "Index Name",
+          "type": "string"
+        },
+        "removed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Removed At"
+        }
+      },
+      "required": [
+        "index_name",
+        "first_seen_at"
+      ],
+      "title": "IndexedIn",
+      "type": "object"
+    },
     "ItemIn": {
       "properties": {
         "entity_id": {
@@ -3822,8 +5648,8 @@
           "type": "string"
         },
         "entity_type": {
-          "const": "publication",
-          "default": "publication",
+          "const": "work",
+          "default": "work",
           "title": "Entity Type",
           "type": "string"
         },
@@ -3864,6 +5690,7 @@
         "code": {
           "anyOf": [
             {
+              "maxLength": 256,
               "type": "string"
             },
             {
@@ -3873,6 +5700,7 @@
           "title": "Code"
         },
         "name": {
+          "maxLength": 300,
           "title": "Name",
           "type": "string"
         },
@@ -3884,9 +5712,16 @@
             {
               "additionalProperties": {
                 "additionalProperties": {
+                  "maxLength": 300,
                   "type": "string"
                 },
+                "propertyNames": {
+                  "maxLength": 256
+                },
                 "type": "object"
+              },
+              "propertyNames": {
+                "maxLength": 256
               },
               "type": "object"
             },
@@ -3905,20 +5740,84 @@
       "type": "object"
     },
     "License": {
+      "description": "A licence, as a slug -- the spelling every source uses and the one\nworks-service stores and returns (WORKS-SERVICE-PLAN step 6). Until\nstep 10 this enum carried publications-service's underscore spellings\n(`cc_by`); works-service still accepts those on input, so an older file\nthat spells a licence that way still publishes.\n\n`cc-by-nd`, `cc-by-nc-nd` and `public-domain` are read values: a harvested\nrecord or a book's expression carries them. An author cannot put their own\ntext in the public domain by ticking a box in most jurisdictions.",
       "enum": [
-        "all_rights_reserved",
-        "cc_by",
-        "cc_by_sa",
-        "cc_by_nc",
-        "cc_by_nc_sa",
+        "all-rights-reserved",
+        "cc-by",
+        "cc-by-sa",
+        "cc-by-nc",
+        "cc-by-nc-sa",
+        "cc-by-nd",
+        "cc-by-nc-nd",
         "cc0",
-        "public_domain"
+        "public-domain"
       ],
       "title": "License",
       "type": "string"
     },
+    "Life": {
+      "description": "A historical person's life dates, relayed from profile-service, which\nsends them only once the person has died.",
+      "properties": {
+        "born": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/LifeDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "died": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/LifeDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        }
+      },
+      "title": "Life",
+      "type": "object"
+    },
+    "LifeDate": {
+      "description": "A date as the record gives it: `1642`, `1642-12` or `1642-12-25`, a\nleading `-` for BC, in its calendar (#1477). No source per date\n(HISTORIC-PROFILES H4).",
+      "properties": {
+        "calendar": {
+          "default": "gregorian",
+          "enum": [
+            "gregorian",
+            "julian"
+          ],
+          "title": "Calendar",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "LifeDate",
+      "type": "object"
+    },
     "MarkdownViewState": {
-      "description": "A file face's converted markdown: on the page, kept off it, or absent.\nMirrors publications-service's `MarkdownViewState`.",
+      "description": "A file face's converted markdown: on the page, kept off it, or absent.\nMirrors works-service's `MarkdownViewState`.",
       "enum": [
         "shown",
         "hidden",
@@ -3928,12 +5827,40 @@
       "type": "string"
     },
     "MentionTarget": {
-      "description": "One entry of the `mentions` map: the profile a `@handle` in the body names.\n\n`username` is the profile's **current** handle, which is not necessarily the\none the body was written with -- profile-service resolves old handles through\nUsernameHistory, so a rename heals every mention of that profile rather than\nstranding it. The renderer links and labels the chip from this field.",
+      "description": "One entry of the `mentions` map: the person or organization a `@handle`\nin a body names (people and organizations share `@`, HANDLES-UNIFY-PLAN).\n\n`username` is the **current** handle, which is not necessarily the one the\nbody was written with -- profile-service resolves old handles through\nUsernameHistory, so a rename heals every mention of that profile rather than\nstranding it. The renderer links and labels the chip from this field; for\nan organization it is the orgname. `kind` picks the chip's badge.",
       "properties": {
-        "profile_id": {
-          "format": "uuid",
-          "title": "Profile Id",
+        "kind": {
+          "default": "person",
+          "enum": [
+            "person",
+            "organization"
+          ],
+          "title": "Kind",
           "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Organization Id"
+        },
+        "profile_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile Id"
         },
         "username": {
           "title": "Username",
@@ -3941,28 +5868,13 @@
         }
       },
       "required": [
-        "profile_id",
         "username"
       ],
       "title": "MentionTarget",
       "type": "object"
     },
-    "MessageResponse": {
-      "description": "Simple `{detail: ...}` body returned by publication/draft deletes.",
-      "properties": {
-        "detail": {
-          "title": "Detail",
-          "type": "string"
-        }
-      },
-      "required": [
-        "detail"
-      ],
-      "title": "MessageResponse",
-      "type": "object"
-    },
     "OrganizationCard": {
-      "description": "The organization a publication was published under, resolved from\n`affiliated_org_id` by the BFF. The five fields a top bar and a link need\n-- deliberately not `OrganizationSummary`, whose member counts and claim\nstate are the org page's business, not a publication's.",
+      "description": "An organization a work names -- its venue (`affiliated_org_id`) or its\nowner (`owner_org_id`) -- resolved by the BFF. The five fields a top bar\nand a link need; deliberately not `OrganizationSummary`, whose member\ncounts and claim state are the org page's business.",
       "properties": {
         "avatar_url": {
           "anyOf": [
@@ -3983,6 +5895,17 @@
           "format": "uuid",
           "title": "Id",
           "type": "string"
+        },
+        "link_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Link Language"
         },
         "orgname": {
           "title": "Orgname",
@@ -4011,10 +5934,12 @@
     "PositionItem": {
       "properties": {
         "institution": {
+          "maxLength": 300,
           "title": "Institution",
           "type": "string"
         },
         "position": {
+          "maxLength": 300,
           "title": "Position",
           "type": "string"
         },
@@ -4023,9 +5948,16 @@
             {
               "additionalProperties": {
                 "additionalProperties": {
+                  "maxLength": 300,
                   "type": "string"
                 },
+                "propertyNames": {
+                  "maxLength": 256
+                },
                 "type": "object"
+              },
+              "propertyNames": {
+                "maxLength": 256
               },
               "type": "object"
             },
@@ -4044,7 +5976,7 @@
       "type": "object"
     },
     "PrimaryFormat": {
-      "description": "Which view of a file face the work page leads with: the file (default),\nor the markdown with the file as its PDF view. Mirrors publications-service's\n`PrimaryFormat`.",
+      "description": "Which view of a file face the work page leads with: the file (default),\nor the markdown with the file as its PDF view. Mirrors works-service's\n`PrimaryFormat`.",
       "enum": [
         "file",
         "markdown"
@@ -4062,6 +5994,42 @@
       ],
       "title": "ProficiencyLevel",
       "type": "string"
+    },
+    "ProfileImageCredit": {
+      "description": "Who made the profile's photo and under which licence, as that licence\nasks to be credited (HISTORIC-PROFILES H5). The photo is\n`profile_image_url`, in our storage; there is never a source link.",
+      "properties": {
+        "credit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Credit"
+        },
+        "licence": {
+          "title": "Licence",
+          "type": "string"
+        },
+        "licence_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Licence Url"
+        }
+      },
+      "required": [
+        "licence"
+      ],
+      "title": "ProfileImageCredit",
+      "type": "object"
     },
     "ProfileMe": {
       "description": "Owner view — every field, every visibility flag.",
@@ -4118,6 +6086,21 @@
             }
           ],
           "title": "Date Of Birth"
+        },
+        "date_of_birth_precision": {
+          "anyOf": [
+            {
+              "enum": [
+                "date",
+                "year"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Date Of Birth Precision"
         },
         "display_name": {
           "anyOf": [
@@ -4329,9 +6312,25 @@
           ],
           "title": "Affiliation Text"
         },
+        "birth_year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Birth Year"
+        },
         "can_message": {
           "default": false,
           "title": "Can Message",
+          "type": "boolean"
+        },
+        "claimable": {
+          "default": false,
+          "title": "Claimable",
           "type": "boolean"
         },
         "content_language": {
@@ -4393,6 +6392,11 @@
           ],
           "title": "Display Name"
         },
+        "established": {
+          "default": true,
+          "title": "Established",
+          "type": "boolean"
+        },
         "family_name": {
           "anyOf": [
             {
@@ -4414,6 +6418,11 @@
             }
           ],
           "title": "Given Name"
+        },
+        "has_account": {
+          "default": false,
+          "title": "Has Account",
+          "type": "boolean"
         },
         "headline": {
           "anyOf": [
@@ -4451,6 +6460,11 @@
           "title": "Interests",
           "type": "array"
         },
+        "is_historic": {
+          "default": false,
+          "title": "Is Historic",
+          "type": "boolean"
+        },
         "languages": {
           "anyOf": [
             {
@@ -4464,6 +6478,16 @@
             }
           ],
           "title": "Languages"
+        },
+        "life": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/Life"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "middle_name": {
           "anyOf": [
@@ -4486,6 +6510,17 @@
             }
           ],
           "title": "Place Of Birth"
+        },
+        "place_of_death": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place Of Death"
         },
         "places_of_residence": {
           "anyOf": [
@@ -4511,6 +6546,16 @@
             }
           ],
           "title": "Primary Language"
+        },
+        "profile_image_credit": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ProfileImageCredit"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "profile_image_url": {
           "anyOf": [
@@ -4664,6 +6709,21 @@
           ],
           "title": "Date Of Birth"
         },
+        "date_of_birth_precision": {
+          "anyOf": [
+            {
+              "enum": [
+                "date",
+                "year"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Date Of Birth Precision"
+        },
         "display_name": {
           "anyOf": [
             {
@@ -4809,6 +6869,10 @@
           "$ref": "#/components/schemas/VisibilityLevel",
           "default": "public"
         },
+        "date_of_birth_visibility": {
+          "$ref": "#/components/schemas/VisibilityLevel",
+          "default": "owner"
+        },
         "is_public": {
           "default": false,
           "title": "Is Public",
@@ -4833,1355 +6897,36 @@
       "title": "ProfileVisibility",
       "type": "object"
     },
-    "PublicationAuthorInvite": {
-      "description": "One name to put on the byline, as a client asks for it.\n\nDeliberately narrower than publications-service's shape: that one also\ncarries `account_less`, the assertion that the invitee has no account and\nso is credited without an answer (#1003). A client must not be able to say\nthat -- it would be instant attribution without consent, the impersonation\nprimitive the pending state exists to prevent. This tier decides it, off\nprofile-service's `has_account`, and stamps it on the forwarded body\n(`stamp_account_less`). Pydantic drops an unknown field a client sends.",
+    "PublishedVersionStatus": {
       "properties": {
-        "access": {
-          "$ref": "#/components/schemas/AuthorAccess",
-          "default": "credited"
+        "record_status": {
+          "enum": [
+            "active",
+            "corrected",
+            "expression_of_concern",
+            "withdrawn",
+            "retracted",
+            "removed",
+            "taken_down"
+          ],
+          "title": "Record Status",
+          "type": "string"
         },
-        "profile_id": {
+        "work_id": {
           "format": "uuid",
-          "title": "Profile Id",
-          "type": "string"
-        },
-        "role": {
-          "$ref": "#/components/schemas/ContributorRole",
-          "default": "author"
-        }
-      },
-      "required": [
-        "profile_id"
-      ],
-      "title": "PublicationAuthorInvite",
-      "type": "object"
-    },
-    "PublicationAuthorOut": {
-      "description": "One name on the byline, with the profile card resolved.\n\n`author` is null when profile-service could not be reached -- embedding is\nbest-effort, and a byline entry with an unresolved card still tells the\nreader someone is there.",
-      "properties": {
-        "access": {
-          "$ref": "#/components/schemas/AuthorAccess"
-        },
-        "author": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/AuthorSummary"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "invited_at": {
-          "format": "date-time",
-          "title": "Invited At",
-          "type": "string"
-        },
-        "invited_by": {
-          "format": "uuid",
-          "title": "Invited By",
-          "type": "string"
-        },
-        "position": {
-          "title": "Position",
-          "type": "integer"
-        },
-        "profile_id": {
-          "format": "uuid",
-          "title": "Profile Id",
-          "type": "string"
-        },
-        "responded_at": {
-          "anyOf": [
-            {
-              "format": "date-time",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Responded At"
-        },
-        "role": {
-          "$ref": "#/components/schemas/ContributorRole",
-          "default": "author"
-        },
-        "status": {
-          "$ref": "#/components/schemas/AuthorStatus"
-        }
-      },
-      "required": [
-        "profile_id",
-        "position",
-        "access",
-        "status",
-        "invited_by",
-        "invited_at"
-      ],
-      "title": "PublicationAuthorOut",
-      "type": "object"
-    },
-    "PublicationCreate": {
-      "properties": {
-        "affiliated_org_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Affiliated Org Id"
-        },
-        "ai_usage": {
-          "$ref": "#/components/schemas/AIUsage",
-          "default": "none"
-        },
-        "attachment_ids": {
-          "anyOf": [
-            {
-              "items": {
-                "format": "uuid",
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Attachment Ids"
-        },
-        "authors": {
-          "items": {
-            "$ref": "#/components/schemas/PublicationAuthorInvite"
-          },
-          "maxItems": 25,
-          "title": "Authors",
-          "type": "array"
-        },
-        "body_attachment_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Body Attachment Id"
-        },
-        "body_format": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/BodyFormat"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "category_ids": {
-          "items": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "maxItems": 25,
-          "title": "Category Ids",
-          "type": "array"
-        },
-        "content": {
-          "default": "",
-          "title": "Content",
-          "type": "string"
-        },
-        "cover_image_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Cover Image Id"
-        },
-        "creator_role": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/ContributorRole"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "description": {
-          "anyOf": [
-            {
-              "maxLength": 5000,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Description"
-        },
-        "import_key": {
-          "anyOf": [
-            {
-              "maxLength": 200,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Import Key"
-        },
-        "is_draft": {
-          "default": false,
-          "title": "Is Draft",
-          "type": "boolean"
-        },
-        "language": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "en",
-          "title": "Language"
-        },
-        "license": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/License"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "markdown_view_state": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/MarkdownViewState"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "original_author": {
-          "anyOf": [
-            {
-              "maxLength": 256,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Original Author"
-        },
-        "original_link": {
-          "anyOf": [
-            {
-              "maxLength": 512,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Original Link"
-        },
-        "owner_org_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Owner Org Id"
-        },
-        "place": {
-          "anyOf": [
-            {
-              "maxLength": 100,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Place"
-        },
-        "primary_format": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/PrimaryFormat"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "references": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/components/schemas/Reference"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "References"
-        },
-        "sponsorships": {
-          "anyOf": [
-            {
-              "items": {},
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Sponsorships"
-        },
-        "tags": {
-          "items": {
-            "type": "string"
-          },
-          "maxItems": 10,
-          "title": "Tags",
-          "type": "array"
-        },
-        "title": {
-          "maxLength": 256,
-          "minLength": 1,
-          "title": "Title",
-          "type": "string"
-        },
-        "type": {
-          "$ref": "#/components/schemas/PublicationType"
-        },
-        "visibility": {
-          "$ref": "#/components/schemas/Visibility",
-          "default": "public"
-        }
-      },
-      "required": [
-        "title",
-        "type"
-      ],
-      "title": "PublicationCreate",
-      "type": "object"
-    },
-    "PublicationImportRef": {
-      "description": "What an importer needs to decide create-or-update, and nothing else.\n\nMirrors publications-service's schema of the same name. Deliberately not\n`PublicationOut`: this is the one owner-scoped read that reports\nsoft-deleted rows, and a removed publication is content its author withdrew,\nso the response carries the row's identity and state rather than its body.",
-      "properties": {
-        "created_at": {
-          "format": "date-time",
-          "title": "Created At",
-          "type": "string"
-        },
-        "id": {
-          "format": "uuid",
-          "title": "Id",
-          "type": "string"
-        },
-        "import_key": {
-          "title": "Import Key",
-          "type": "string"
-        },
-        "is_draft": {
-          "title": "Is Draft",
-          "type": "boolean"
-        },
-        "removed": {
-          "title": "Removed",
-          "type": "boolean"
-        },
-        "title": {
-          "title": "Title",
-          "type": "string"
-        },
-        "updated_at": {
-          "format": "date-time",
-          "title": "Updated At",
+          "title": "Work Id",
           "type": "string"
         }
       },
       "required": [
-        "id",
-        "import_key",
-        "title",
-        "is_draft",
-        "removed",
-        "created_at",
-        "updated_at"
+        "work_id",
+        "record_status"
       ],
-      "title": "PublicationImportRef",
-      "type": "object"
-    },
-    "PublicationOut": {
-      "properties": {
-        "affiliated_org_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Affiliated Org Id"
-        },
-        "ai_usage": {
-          "$ref": "#/components/schemas/AIUsage",
-          "default": "none"
-        },
-        "attachment_ids": {
-          "items": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": "Attachment Ids",
-          "type": "array"
-        },
-        "attachments": {
-          "items": {
-            "$ref": "#/components/schemas/AttachmentOut"
-          },
-          "title": "Attachments",
-          "type": "array"
-        },
-        "attribution": {
-          "anyOf": [
-            {
-              "enum": [
-                "authored",
-                "anonymous",
-                "traditional",
-                "attributed",
-                "corporate"
-              ],
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Attribution"
-        },
-        "author": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/AuthorSummary"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "author_id": {
-          "format": "uuid",
-          "title": "Author Id",
-          "type": "string"
-        },
-        "authors": {
-          "items": {
-            "$ref": "#/components/schemas/PublicationAuthorOut"
-          },
-          "title": "Authors",
-          "type": "array"
-        },
-        "body_attachment_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Body Attachment Id"
-        },
-        "body_format": {
-          "$ref": "#/components/schemas/BodyFormat",
-          "default": "markdown"
-        },
-        "bookmarks_count": {
-          "default": 0,
-          "title": "Bookmarks Count",
-          "type": "integer"
-        },
-        "categories": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/components/schemas/CategorySimple"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Categories"
-        },
-        "category_ids": {
-          "items": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": "Category Ids",
-          "type": "array"
-        },
-        "comments_count": {
-          "default": 0,
-          "title": "Comments Count",
-          "type": "integer"
-        },
-        "content": {
-          "default": "",
-          "title": "Content",
-          "type": "string"
-        },
-        "content_language": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/ContentLanguage"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "content_source": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Content Source"
-        },
-        "cover_image_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Cover Image Id"
-        },
-        "created_at": {
-          "format": "date-time",
-          "title": "Created At",
-          "type": "string"
-        },
-        "description": {
-          "anyOf": [
-            {
-              "maxLength": 5000,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Description"
-        },
-        "downvotes_count": {
-          "default": 0,
-          "title": "Downvotes Count",
-          "type": "integer"
-        },
-        "expressions": {
-          "items": {
-            "$ref": "#/components/schemas/ExpressionOut"
-          },
-          "title": "Expressions",
-          "type": "array"
-        },
-        "first_published": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "First Published"
-        },
-        "frozen_at": {
-          "anyOf": [
-            {
-              "format": "date-time",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Frozen At"
-        },
-        "id": {
-          "format": "uuid",
-          "title": "Id",
-          "type": "string"
-        },
-        "identifiers": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "title": "Identifiers",
-          "type": "object"
-        },
-        "import_key": {
-          "anyOf": [
-            {
-              "maxLength": 200,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Import Key"
-        },
-        "index_held": {
-          "default": false,
-          "title": "Index Held",
-          "type": "boolean"
-        },
-        "is_draft": {
-          "default": false,
-          "title": "Is Draft",
-          "type": "boolean"
-        },
-        "language": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "en",
-          "title": "Language"
-        },
-        "license": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/License"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "markdown_view_state": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/MarkdownViewState"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "mentions": {
-          "additionalProperties": {
-            "$ref": "#/components/schemas/MentionTarget"
-          },
-          "default": {},
-          "title": "Mentions",
-          "type": "object"
-        },
-        "organizations": {
-          "items": {
-            "$ref": "#/components/schemas/OrganizationCard"
-          },
-          "title": "Organizations",
-          "type": "array"
-        },
-        "original_author": {
-          "anyOf": [
-            {
-              "maxLength": 256,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Original Author"
-        },
-        "original_link": {
-          "anyOf": [
-            {
-              "maxLength": 512,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Original Link"
-        },
-        "owner_org_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Owner Org Id"
-        },
-        "owner_organization": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/OrganizationCard"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "place": {
-          "anyOf": [
-            {
-              "maxLength": 100,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Place"
-        },
-        "primary_expression_by_language": {
-          "additionalProperties": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": "Primary Expression By Language",
-          "type": "object"
-        },
-        "primary_format": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/PrimaryFormat"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "public_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Public Id"
-        },
-        "published_at": {
-          "anyOf": [
-            {
-              "format": "date-time",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Published At"
-        },
-        "references": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/components/schemas/Reference"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "References"
-        },
-        "retraction": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/RetractionOut"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "sponsorships": {
-          "anyOf": [
-            {
-              "items": {},
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Sponsorships"
-        },
-        "tags": {
-          "items": {
-            "type": "string"
-          },
-          "maxItems": 10,
-          "title": "Tags",
-          "type": "array"
-        },
-        "tikz_render_urls": {
-          "anyOf": [
-            {
-              "items": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/TikzRender"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Tikz Render Urls"
-        },
-        "title": {
-          "maxLength": 256,
-          "minLength": 1,
-          "title": "Title",
-          "type": "string"
-        },
-        "type": {
-          "$ref": "#/components/schemas/PublicationType"
-        },
-        "updated_at": {
-          "format": "date-time",
-          "title": "Updated At",
-          "type": "string"
-        },
-        "upvotes_count": {
-          "default": 0,
-          "title": "Upvotes Count",
-          "type": "integer"
-        },
-        "viewer_access": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/AuthorAccess"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "views_count": {
-          "default": 0,
-          "title": "Views Count",
-          "type": "integer"
-        },
-        "visibility": {
-          "$ref": "#/components/schemas/Visibility",
-          "default": "public"
-        },
-        "work": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/PublicationWorkBlock"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "written": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Written"
-        }
-      },
-      "required": [
-        "title",
-        "type",
-        "id",
-        "author_id",
-        "created_at",
-        "updated_at"
-      ],
-      "title": "PublicationOut",
-      "type": "object"
-    },
-    "PublicationPage": {
-      "description": "A page of publications in the public envelope\n(docs/architecture/pagination.md). Author and category cards are hydrated\ninto each item by the BFF before this goes out.",
-      "properties": {
-        "has_more": {
-          "default": false,
-          "description": "Whether at least one more item follows this page.",
-          "title": "Has More",
-          "type": "boolean"
-        },
-        "items": {
-          "items": {
-            "$ref": "#/components/schemas/PublicationOut"
-          },
-          "title": "Items",
-          "type": "array"
-        },
-        "limit": {
-          "description": "Page size actually applied (post-clamp).",
-          "title": "Limit",
-          "type": "integer"
-        },
-        "next_cursor": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Opaque cursor for the next page; null at the end. Pass it back as `cursor`. Do not parse it.",
-          "title": "Next Cursor"
-        },
-        "offset": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Offset actually applied. Null on a cursor-only surface.",
-          "title": "Offset"
-        },
-        "total": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Rows matching the current filters, ignoring limit/offset. Null means not counted (feeds), never zero.",
-          "title": "Total"
-        }
-      },
-      "required": [
-        "limit",
-        "items"
-      ],
-      "title": "PublicationPage",
-      "type": "object"
-    },
-    "PublicationType": {
-      "description": "Every type libretimes.io may create -- living content and, since\n2026-09-14, the five citable record types.\n\nThis was deliberately a subset excluding `original_research`, `letter`,\n`review`, `report` and `thesis`, because journal-bff was the door for\nthem. The journal is parked (ONE-PRODUCT Phase 0) and its return is a\nvenue over the same rows, so the record types are creatable here with\nthe semantics publications-service enforces by type alone: frozen on\npublish, numbered, retracted not deleted, corrected by a new version\n(WORKS-UNIFICATION decision 15). The chooser says so before Publish.\n\nSee docs/architecture/content-types.md.",
-      "enum": [
-        "lecture",
-        "seminar",
-        "tutorial",
-        "lab",
-        "talk",
-        "theory",
-        "problems",
-        "cheatsheet",
-        "reference",
-        "notes",
-        "essay",
-        "sci_pop",
-        "other",
-        "original_research",
-        "letter",
-        "review",
-        "report",
-        "thesis",
-        "book"
-      ],
-      "title": "PublicationType",
-      "type": "string"
-    },
-    "PublicationUpdate": {
-      "properties": {
-        "affiliated_org_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Affiliated Org Id"
-        },
-        "ai_usage": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/AIUsage"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "attachment_ids": {
-          "anyOf": [
-            {
-              "items": {
-                "format": "uuid",
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Attachment Ids"
-        },
-        "body_attachment_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Body Attachment Id"
-        },
-        "body_format": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/BodyFormat"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "category_ids": {
-          "anyOf": [
-            {
-              "items": {
-                "format": "uuid",
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Category Ids"
-        },
-        "content": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Content"
-        },
-        "cover_image_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Cover Image Id"
-        },
-        "description": {
-          "anyOf": [
-            {
-              "maxLength": 5000,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Description"
-        },
-        "is_draft": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Is Draft"
-        },
-        "language": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Language"
-        },
-        "license": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/License"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "markdown_view_state": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/MarkdownViewState"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "place": {
-          "anyOf": [
-            {
-              "maxLength": 100,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Place"
-        },
-        "primary_format": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/PrimaryFormat"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "references": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/components/schemas/Reference"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "References"
-        },
-        "sponsorships": {
-          "anyOf": [
-            {
-              "items": {},
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Sponsorships"
-        },
-        "tags": {
-          "anyOf": [
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Tags"
-        },
-        "title": {
-          "anyOf": [
-            {
-              "maxLength": 256,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Title"
-        },
-        "type": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/PublicationType"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "visibility": {
-          "anyOf": [
-            {
-              "$ref": "#/components/schemas/Visibility"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "title": "PublicationUpdate",
-      "type": "object"
-    },
-    "PublicationWorkBlock": {
-      "description": "What the publication page shows of its work row. A subset of `Work`\non purpose: the page already renders the text, byline and categories.",
-      "properties": {
-        "arxiv_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Arxiv Id"
-        },
-        "cited_by_count": {
-          "default": 0,
-          "title": "Cited By Count",
-          "type": "integer"
-        },
-        "doi": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Doi"
-        },
-        "downvotes_count": {
-          "default": 0,
-          "title": "Downvotes Count",
-          "type": "integer"
-        },
-        "id": {
-          "format": "uuid",
-          "title": "Id",
-          "type": "string"
-        },
-        "local_signal": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Local Signal"
-        },
-        "provenance": {
-          "title": "Provenance",
-          "type": "string"
-        },
-        "upvotes_count": {
-          "default": 0,
-          "title": "Upvotes Count",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "id",
-        "provenance"
-      ],
-      "title": "PublicationWorkBlock",
+      "title": "PublishedVersionStatus",
       "type": "object"
     },
     "Reference": {
-      "description": "A bibliographic reference on a publication. CSL-aligned snapshot; may link\nto a known work or a library citation. Mirrors publications-service.",
+      "description": "A bibliographic reference in a hosted text: a CSL-aligned snapshot that\nmay link to a known work or a library citation.",
       "properties": {
         "arxiv_id": {
           "anyOf": [
@@ -6224,6 +6969,20 @@
         "citation_type": {
           "$ref": "#/components/schemas/CitationType",
           "default": "article"
+        },
+        "cited_in": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/CitedIn"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cited In"
         },
         "container_title": {
           "anyOf": [
@@ -6371,6 +7130,18 @@
           ],
           "title": "Publisher Place"
         },
+        "raw_reference_text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raw Reference Text"
+        },
         "title": {
           "maxLength": 500,
           "minLength": 1,
@@ -6438,6 +7209,7 @@
         "family": {
           "anyOf": [
             {
+              "maxLength": 300,
               "type": "string"
             },
             {
@@ -6449,6 +7221,7 @@
         "given": {
           "anyOf": [
             {
+              "maxLength": 300,
               "type": "string"
             },
             {
@@ -6460,6 +7233,7 @@
         "literal": {
           "anyOf": [
             {
+              "maxLength": 300,
               "type": "string"
             },
             {
@@ -6471,6 +7245,7 @@
         "suffix": {
           "anyOf": [
             {
+              "maxLength": 300,
               "type": "string"
             },
             {
@@ -6497,8 +7272,8 @@
           "type": "array"
         },
         "entity_type": {
-          "const": "publication",
-          "default": "publication",
+          "const": "work",
+          "default": "work",
           "title": "Entity Type",
           "type": "string"
         }
@@ -6511,6 +7286,17 @@
     },
     "ResearcherIdentifiersOut": {
       "properties": {
+        "openalex_author_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Openalex Author Id"
+        },
         "orcid": {
           "anyOf": [
             {
@@ -6551,6 +7337,7 @@
     "ResidenceItem": {
       "properties": {
         "location": {
+          "maxLength": 300,
           "title": "Location",
           "type": "string"
         },
@@ -6559,9 +7346,16 @@
             {
               "additionalProperties": {
                 "additionalProperties": {
+                  "maxLength": 300,
                   "type": "string"
                 },
+                "propertyNames": {
+                  "maxLength": 256
+                },
                 "type": "object"
+              },
+              "propertyNames": {
+                "maxLength": 256
               },
               "type": "object"
             },
@@ -6578,30 +7372,90 @@
       "title": "ResidenceItem",
       "type": "object"
     },
-    "RetractionOut": {
-      "description": "The withdrawal notice publications-service carries on every read of a\nretracted record (its `RetractionOut`). A retracted record stays readable\nso citations do not dangle, which is exactly why the notice has to reach\nthe page: a reader who followed a citation here needs it before the text.",
+    "ResolveRequest": {
       "properties": {
-        "reason": {
-          "title": "Reason",
-          "type": "string"
-        },
-        "retracted_at": {
-          "format": "date-time",
-          "title": "Retracted At",
-          "type": "string"
-        },
-        "retracted_by": {
-          "format": "uuid",
-          "title": "Retracted By",
+        "query": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Query",
           "type": "string"
         }
       },
       "required": [
-        "reason",
-        "retracted_by",
-        "retracted_at"
+        "query"
       ],
-      "title": "RetractionOut",
+      "title": "ResolveRequest",
+      "type": "object"
+    },
+    "ResolveResult": {
+      "description": "A DOI, arXiv id, ISBN or title, resolved index-first.",
+      "properties": {
+        "claimable": {
+          "default": false,
+          "title": "Claimable",
+          "type": "boolean"
+        },
+        "claimed_by_caller": {
+          "default": false,
+          "title": "Claimed By Caller",
+          "type": "boolean"
+        },
+        "indexed": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/WorkCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "doi",
+            "arxiv",
+            "isbn",
+            "title"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "raw_authors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Raw Authors",
+          "type": "array"
+        },
+        "resolved": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ExternalCreate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "suggestions": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/WorkCard"
+          },
+          "title": "Suggestions",
+          "type": "array"
+        },
+        "unavailable": {
+          "default": false,
+          "title": "Unavailable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "ResolveResult",
       "type": "object"
     },
     "RightsOut": {
@@ -6612,7 +7466,8 @@
             "cc0",
             "cc_by",
             "cc_by_sa",
-            "rights_reserved"
+            "rights_reserved",
+            "publisher_grant"
           ],
           "title": "Basis",
           "type": "string"
@@ -6628,6 +7483,18 @@
           "title": "Reason",
           "type": "string"
         },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retrieved At"
+        },
         "source_claim": {
           "anyOf": [
             {
@@ -6638,6 +7505,62 @@
             }
           ],
           "title": "Source Claim"
+        },
+        "terms": {
+          "anyOf": [
+            {
+              "enum": [
+                "unrestricted",
+                "verbatim",
+                "noncommercial",
+                "screen_only"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Terms"
+        },
+        "terms_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Terms Url"
+        },
+        "territories": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Territories",
+          "type": "array"
+        },
+        "territory_basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Territory Basis"
+        },
+        "territory_rule": {
+          "default": "everywhere",
+          "enum": [
+            "everywhere",
+            "only",
+            "except"
+          ],
+          "title": "Territory Rule",
+          "type": "string"
         }
       },
       "required": [
@@ -6647,9 +7570,180 @@
       "title": "RightsOut",
       "type": "object"
     },
-    "TikzRender": {
-      "description": "One materialized `:::tikz` diagram: public SVG URL plus intrinsic size\nin CSS px (None when tikz-service could not read it from the SVG).",
+    "StatusNotice": {
+      "description": "A notice in force: what was said, by whom (author, moderator, source),\nand where. Who performed a moderator action is not exposed.",
       "properties": {
+        "asserted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Asserted At"
+        },
+        "asserted_by": {
+          "title": "Asserted By",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Kind"
+        },
+        "notice_doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Notice Doi"
+        },
+        "notice_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Notice Url"
+        },
+        "reason_codes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Reason Codes",
+          "type": "array"
+        },
+        "reason_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason Text"
+        },
+        "record_status": {
+          "enum": [
+            "active",
+            "corrected",
+            "expression_of_concern",
+            "withdrawn",
+            "retracted",
+            "removed",
+            "taken_down"
+          ],
+          "title": "Record Status",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_status",
+        "asserted_by",
+        "source",
+        "created_at"
+      ],
+      "title": "StatusNotice",
+      "type": "object"
+    },
+    "TextAccessOut": {
+      "description": "Whether this reader may read an edition's text where they are\n(GEO-ACCESS-PLAN §5). `unavailable_here` is not an error: the page, its\ncontents and its metadata are served with no body, and the reader is told\nwhy -- with the other editions that do read here.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "const": "territory",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "restricted": {
+          "default": false,
+          "title": "Restricted",
+          "type": "boolean"
+        },
+        "state": {
+          "default": "available",
+          "enum": [
+            "available",
+            "unavailable_here",
+            "not_published"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "territories": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Territories",
+          "type": "array"
+        },
+        "territory_rule": {
+          "anyOf": [
+            {
+              "enum": [
+                "everywhere",
+                "only",
+                "except"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Territory Rule"
+        }
+      },
+      "title": "TextAccessOut",
+      "type": "object"
+    },
+    "TikzRender": {
+      "description": "One materialised `:::tikz` diagram: its SVG, its dark-ink variant, its size.",
+      "properties": {
+        "dark_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dark Url"
+        },
         "height": {
           "anyOf": [
             {
@@ -6681,6 +7775,26 @@
         "url"
       ],
       "title": "TikzRender",
+      "type": "object"
+    },
+    "TranslationLink": {
+      "description": "Relayed from works-service: another work that is a confirmed\ntranslation of this one, or the one it translates, and its language.",
+      "properties": {
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "work_id": {
+          "format": "uuid",
+          "title": "Work Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "work_id",
+        "language"
+      ],
+      "title": "TranslationLink",
       "type": "object"
     },
     "ValidationError": {
@@ -6742,6 +7856,2265 @@
       ],
       "title": "VisibilityLevel",
       "type": "string"
+    },
+    "WorkCard": {
+      "description": "What a list, a card or a search hit needs: the head row, no text.",
+      "properties": {
+        "abstract": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Abstract"
+        },
+        "affiliated_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliated Org Id"
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Arxiv Id"
+        },
+        "bookmarks_count": {
+          "default": 0,
+          "title": "Bookmarks Count",
+          "type": "integer"
+        },
+        "byline": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/BylineEntry"
+          },
+          "title": "Byline",
+          "type": "array"
+        },
+        "categories": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/CategorySimple"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "category_ids": {
+          "default": [],
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "cited_by_count": {
+          "default": 0,
+          "title": "Cited By Count",
+          "type": "integer"
+        },
+        "comments_count": {
+          "default": 0,
+          "title": "Comments Count",
+          "type": "integer"
+        },
+        "container_title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Container Title"
+        },
+        "content_language": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContentLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/Cover"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cover_image_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Image Id"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "day": {
+          "anyOf": [
+            {
+              "maximum": 31.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Day"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "science",
+                "education",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Direction"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Doi"
+        },
+        "downvotes_count": {
+          "default": 0,
+          "title": "Downvotes Count",
+          "type": "integer"
+        },
+        "entry": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BylineEntry"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "full_text": {
+          "$ref": "#/components/schemas/FullText"
+        },
+        "genres": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "title": "Genres",
+          "type": "array"
+        },
+        "has_text": {
+          "default": false,
+          "title": "Has Text",
+          "type": "boolean"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "index_held": {
+          "default": false,
+          "title": "Index Held",
+          "type": "boolean"
+        },
+        "is_draft": {
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "keywords": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/WorkKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Language"
+        },
+        "month": {
+          "anyOf": [
+            {
+              "maximum": 12.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Month"
+        },
+        "organizations": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/OrganizationCard"
+          },
+          "title": "Organizations",
+          "type": "array"
+        },
+        "owner_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Owner Org Id"
+        },
+        "owner_organization": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/OrganizationCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "enum": [
+            "published_on_libretimes",
+            "verified_external",
+            "imported_external",
+            "self_asserted"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "public_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Public Id"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Published At"
+        },
+        "record_status": {
+          "default": "active",
+          "enum": [
+            "active",
+            "corrected",
+            "expression_of_concern",
+            "withdrawn",
+            "retracted",
+            "removed",
+            "taken_down"
+          ],
+          "title": "Record Status",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "upvotes_count": {
+          "default": 0,
+          "title": "Upvotes Count",
+          "type": "integer"
+        },
+        "views_count": {
+          "default": 0,
+          "title": "Views Count",
+          "type": "integer"
+        },
+        "visibility": {
+          "$ref": "#/components/schemas/Visibility"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "title",
+        "provenance",
+        "full_text",
+        "visibility",
+        "is_draft",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "WorkCard",
+      "type": "object"
+    },
+    "WorkKind": {
+      "description": "What kind of text we host -- a work's `kind` (WORKS-SERVICE-PLAN\ndecision 1). Named `PublicationType` until step 10; null on an external\nrecord, which has only the world's `type`. Every kind libretimes.io may\ncreate -- living content and, since 2026-09-14, the five citable record\ntypes.\n\nThe record types are creatable here with the semantics works-service\nenforces by type alone: frozen on\npublish, numbered, retracted not deleted, corrected by a new version\n(WORKS-UNIFICATION decision 15). The chooser says so before Publish.\n\nSee docs/architecture/content-types.md.",
+      "enum": [
+        "lecture",
+        "seminar",
+        "tutorial",
+        "lab",
+        "talk",
+        "theory",
+        "problems",
+        "cheatsheet",
+        "reference",
+        "notes",
+        "essay",
+        "sci_pop",
+        "other",
+        "original_research",
+        "letter",
+        "review",
+        "report",
+        "thesis",
+        "book"
+      ],
+      "title": "WorkKind",
+      "type": "string"
+    },
+    "WorkOut": {
+      "description": "One work, read: the head row, the served text, the byline, the status.",
+      "properties": {
+        "abstract": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Abstract"
+        },
+        "abstract_sections": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/AbstractSection"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Abstract Sections"
+        },
+        "affiliated_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliated Org Id"
+        },
+        "ai_usage": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AIUsage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Arxiv Id"
+        },
+        "attachment_ids": {
+          "default": [],
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Attachment Ids",
+          "type": "array"
+        },
+        "attachments": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/AttachmentOut"
+          },
+          "title": "Attachments",
+          "type": "array"
+        },
+        "attribution": {
+          "anyOf": [
+            {
+              "enum": [
+                "authored",
+                "anonymous",
+                "traditional",
+                "attributed",
+                "corporate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attribution"
+        },
+        "body_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Attachment Id"
+        },
+        "body_format": {
+          "$ref": "#/components/schemas/BodyFormat",
+          "default": "markdown"
+        },
+        "bookmarks_count": {
+          "default": 0,
+          "title": "Bookmarks Count",
+          "type": "integer"
+        },
+        "byline": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/BylineEntry"
+          },
+          "title": "Byline",
+          "type": "array"
+        },
+        "categories": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/CategorySimple"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "category_ids": {
+          "default": [],
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "citation_count_total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Citation Count Total"
+        },
+        "citation_count_verified": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Citation Count Verified"
+        },
+        "citation_counts_by_source": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Citation Counts By Source"
+        },
+        "cited_by_count": {
+          "default": 0,
+          "title": "Cited By Count",
+          "type": "integer"
+        },
+        "cited_statuses": {
+          "additionalProperties": {
+            "$ref": "#/components/schemas/CitedStatus"
+          },
+          "description": "The works this one's references link that no longer stand, by id (an active one is left out). `via_published_version` is a cited preprint whose published article stopped standing.",
+          "title": "Cited Statuses",
+          "type": "object"
+        },
+        "comments_count": {
+          "default": 0,
+          "title": "Comments Count",
+          "type": "integer"
+        },
+        "container_title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Container Title"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content"
+        },
+        "content_language": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/ContentLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Source"
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/Cover"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cover_image_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Image Id"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "current_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Current Version"
+        },
+        "day": {
+          "anyOf": [
+            {
+              "maximum": 31.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Day"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "science",
+                "education",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Direction"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Doi"
+        },
+        "downvotes_count": {
+          "default": 0,
+          "title": "Downvotes Count",
+          "type": "integer"
+        },
+        "entry": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BylineEntry"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expressions": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/ExpressionOut"
+          },
+          "title": "Expressions",
+          "type": "array"
+        },
+        "first_published": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Published"
+        },
+        "frozen_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Frozen At"
+        },
+        "full_text": {
+          "$ref": "#/components/schemas/FullText"
+        },
+        "genres": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "title": "Genres",
+          "type": "array"
+        },
+        "gutenberg_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gutenberg Id"
+        },
+        "has_text": {
+          "default": false,
+          "title": "Has Text",
+          "type": "boolean"
+        },
+        "html_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Html Url"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "import_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Import Key"
+        },
+        "imported_from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Imported From"
+        },
+        "index_held": {
+          "default": false,
+          "title": "Index Held",
+          "type": "boolean"
+        },
+        "indexed_in": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/IndexedIn"
+          },
+          "title": "Indexed In",
+          "type": "array"
+        },
+        "is_draft": {
+          "title": "Is Draft",
+          "type": "boolean"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issue"
+        },
+        "keywords": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/WorkKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Language"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "License"
+        },
+        "listed": {
+          "default": true,
+          "title": "Listed",
+          "type": "boolean"
+        },
+        "markdown_view_state": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/MarkdownViewState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mentions": {
+          "additionalProperties": {
+            "$ref": "#/components/schemas/MentionTarget"
+          },
+          "default": {},
+          "title": "Mentions",
+          "type": "object"
+        },
+        "month": {
+          "anyOf": [
+            {
+              "maximum": 12.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Month"
+        },
+        "oa_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Oa Status"
+        },
+        "oa_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Oa Url"
+        },
+        "openalex_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Openalex Id"
+        },
+        "organizations": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/OrganizationCard"
+          },
+          "title": "Organizations",
+          "type": "array"
+        },
+        "original_author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Author"
+        },
+        "owner_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Owner Org Id"
+        },
+        "owner_organization": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/OrganizationCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pages"
+        },
+        "pdf_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pdf Url"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place"
+        },
+        "pmid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pmid"
+        },
+        "primary_expression_by_language": {
+          "additionalProperties": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "default": {},
+          "title": "Primary Expression By Language",
+          "type": "object"
+        },
+        "primary_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PrimaryFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "enum": [
+            "published_on_libretimes",
+            "verified_external",
+            "imported_external",
+            "self_asserted"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "public_comments": {
+          "default": true,
+          "title": "Public Comments",
+          "type": "boolean"
+        },
+        "public_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Public Id"
+        },
+        "public_suggestions": {
+          "default": true,
+          "title": "Public Suggestions",
+          "type": "boolean"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Published At"
+        },
+        "published_version": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PublishedVersionStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When this is a preprint whose published version here no longer stands."
+        },
+        "record_status": {
+          "default": "active",
+          "enum": [
+            "active",
+            "corrected",
+            "expression_of_concern",
+            "withdrawn",
+            "retracted",
+            "removed",
+            "taken_down"
+          ],
+          "title": "Record Status",
+          "type": "string"
+        },
+        "reference_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reference Count"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/Reference"
+          },
+          "title": "References",
+          "type": "array"
+        },
+        "retracted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retracted At"
+        },
+        "rewritten_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rewritten At"
+        },
+        "standard_ebooks_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Standard Ebooks Id"
+        },
+        "status_notices": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/StatusNotice"
+          },
+          "title": "Status Notices",
+          "type": "array"
+        },
+        "thesis_level": {
+          "anyOf": [
+            {
+              "enum": [
+                "course",
+                "bachelor",
+                "master",
+                "phd",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Thesis Level"
+        },
+        "tikz_render_urls": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TikzRender"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tikz Render Urls"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "translation_links": {
+          "default": [],
+          "items": {
+            "$ref": "#/components/schemas/TranslationLink"
+          },
+          "title": "Translation Links",
+          "type": "array"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "upvotes_count": {
+          "default": 0,
+          "title": "Upvotes Count",
+          "type": "integer"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        },
+        "verification_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Verification Source"
+        },
+        "verified_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Verified At"
+        },
+        "viewer_access": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AuthorAccess"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "views_count": {
+          "default": 0,
+          "title": "Views Count",
+          "type": "integer"
+        },
+        "visibility": {
+          "$ref": "#/components/schemas/Visibility"
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Volume"
+        },
+        "wikidata_qid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Wikidata Qid"
+        },
+        "written": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Written"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "title",
+        "provenance",
+        "full_text",
+        "visibility",
+        "is_draft",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "WorkOut",
+      "type": "object"
+    },
+    "WorkPage": {
+      "description": "A page of works in the public envelope (docs/architecture/pagination.md).",
+      "properties": {
+        "has_more": {
+          "default": false,
+          "description": "Whether at least one more item follows this page.",
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/WorkCard"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "limit": {
+          "description": "Page size actually applied (post-clamp).",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Opaque cursor for the next page; null at the end. Pass it back as `cursor`. Do not parse it.",
+          "title": "Next Cursor"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Offset actually applied. Null on a cursor-only surface.",
+          "title": "Offset"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rows matching the current filters, ignoring limit/offset. Null means not counted (feeds), never zero.",
+          "title": "Total"
+        }
+      },
+      "required": [
+        "limit",
+        "items"
+      ],
+      "title": "WorkPage",
+      "type": "object"
+    },
+    "WorkReferenceIn": {
+      "description": "One author-added reference on an external record: a pick from the\nindex (`cited_work_id`) or a custom entry. A custom entry links itself if\nthe cited work is harvested later, but only by identifier -- never by\ntitle -- which is why the composer asks for a DOI.",
+      "properties": {
+        "abstract": {
+          "anyOf": [
+            {
+              "maxLength": 20000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Abstract"
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Arxiv Id"
+        },
+        "authors": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/ReferenceAuthor"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Authors"
+        },
+        "cited_work_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cited Work Id"
+        },
+        "container_title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Container Title"
+        },
+        "day": {
+          "anyOf": [
+            {
+              "maximum": 31.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Day"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Doi"
+        },
+        "edition": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Edition"
+        },
+        "isbn": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Isbn"
+        },
+        "issn": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issn"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issue"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Language"
+        },
+        "month": {
+          "anyOf": [
+            {
+              "maximum": 12.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Month"
+        },
+        "openalex_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Openalex Id"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pages"
+        },
+        "pmid": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pmid"
+        },
+        "publisher": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher"
+        },
+        "publisher_place": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Publisher Place"
+        },
+        "raw_reference_text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raw Reference Text"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Volume"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100.0,
+              "minimum": 1000.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "title": "WorkReferenceIn",
+      "type": "object"
+    },
+    "WorkType": {
+      "description": "The world's vocabulary (ORCID/CSL/Crossref): what an export reads.\nEvery work has one; a hosted text's is mapped from its `kind` on write.",
+      "enum": [
+        "journal-article",
+        "conference-paper",
+        "book",
+        "book-chapter",
+        "edited-book",
+        "book-series",
+        "book-set",
+        "preprint",
+        "thesis",
+        "report",
+        "review",
+        "translation",
+        "dataset",
+        "software",
+        "patent",
+        "standard",
+        "talk-invited",
+        "talk-conference",
+        "poster",
+        "lecture-speech",
+        "other"
+      ],
+      "title": "WorkType",
+      "type": "string"
+    },
+    "WorkUpdate": {
+      "description": "PATCH a work. Lifecycle is never a PATCH field -- publishing,\nunpublishing and withdrawing are verbs. Which fields a caller may send,\nand which apply to which origin, is works-service's.",
+      "properties": {
+        "abstract": {
+          "anyOf": [
+            {
+              "maxLength": 20000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Abstract"
+        },
+        "affiliated_org_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Affiliated Org Id"
+        },
+        "ai_usage": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/AIUsage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Arxiv Id"
+        },
+        "attachment_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attachment Ids"
+        },
+        "authors": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/BylineName"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Authors"
+        },
+        "body_attachment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Attachment Id"
+        },
+        "body_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/BodyFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 25,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Category Ids"
+        },
+        "container_title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Container Title"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "maxLength": 2000000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content"
+        },
+        "correction_ref": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Correction Ref"
+        },
+        "cover_image_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cover Image Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Doi"
+        },
+        "genres": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 256,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Genres"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issue"
+        },
+        "keywords": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 300,
+                "type": "string"
+              },
+              "maxItems": 10,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Keywords"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/WorkKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "language": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Language"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/License"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "markdown_view_state": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/MarkdownViewState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "openalex_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Openalex Id"
+        },
+        "original_author": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Author"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pages"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Place"
+        },
+        "pmid": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pmid"
+        },
+        "primary_format": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/PrimaryFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "public_comments": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Public Comments"
+        },
+        "public_suggestions": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Public Suggestions"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/components/schemas/Reference"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "References"
+        },
+        "thesis_level": {
+          "anyOf": [
+            {
+              "enum": [
+                "course",
+                "bachelor",
+                "master",
+                "phd",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Thesis Level"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/WorkType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/Visibility"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Volume"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100.0,
+              "minimum": 1000.0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Year"
+        }
+      },
+      "title": "WorkUpdate",
+      "type": "object"
     }
   }
 }

@@ -34,6 +34,8 @@ func newWorkCommand(e *env) *cobra.Command {
 		newWorkDecideCommand(e, "accept"),
 		newWorkDecideCommand(e, "reject"),
 		newWorkAttachmentsCommand(e),
+		newWorkCiteCommand(e),
+		newWorkRecordCommand(e),
 		newTranslationsCommand(e, workTranslations),
 	)
 	return cmd
