@@ -164,6 +164,17 @@ Each result has `action` (`create`, `update`, `failed`), `collection_id`,
 | `not_published` | no work holds the item's `import_key` yet. Publish it, then re-run |
 | `draft` | a draft holds it |
 | `deleted` | a deleted work holds it. Same rule as `blocked`: a person decides |
+| `not_found` | a listed work id or URL names no work visible to you |
+| `not_indexed` | a listed DOI, arXiv id or ISBN names no work the site holds. `lt` never creates one |
+
+A manifest may also carry `sections:` and mapping items `{work, note, edition}`
+(see README.md). Each result then has `sections` (`create`, `present` or
+`update`, found by title) and, per item, `section`, `edition` and `changes`
+(`note`, `edition`, `section`; the item's `action` is `update`). An ISBN that
+matches several editions fails the manifest before any write, listing the
+candidates; `book:<key>` is refused; a pin that is not an edition of the work
+fails with `validation_error`.
+`lt collection export COLLECTION` prints the list as CSL-JSON on stdout.
 
 A skip does not fail the collection and does not change the exit code. Also on
 the result: `reordered` (the run restores the manifest's order) and `unlisted`

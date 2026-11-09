@@ -1,11 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -21,6 +22,7 @@ import (
 const (
 	itemAdd     = "add"
 	itemPresent = "present"
+	itemUpdate  = "update" // present, and its note, edition or section is set to the manifest's
 	itemSkip    = "skip"
 )
 
@@ -31,27 +33,48 @@ const (
 	skipNotPublished = "not_published" // no publication holds this key yet
 	skipDeleted      = "deleted"       // a deleted publication holds it
 	skipDraft        = "draft"         // a draft holds it; readers could not open it
+	skipNotFound     = "not_found"     // no work with that id is visible to you
+	skipNotIndexed   = "not_indexed"   // the DOI / arXiv id / ISBN names no work the site holds
 )
 
 // itemResult is one listed work's outcome, reported under its collection.
+// PublicationID is the work's id, kept under its old name for callers that
+// already read it.
 type itemResult struct {
-	Path          string `json:"path"`
-	ImportKey     string `json:"import_key"`
-	Action        string `json:"action"`
-	Reason        string `json:"reason,omitempty"`
-	PublicationID string `json:"publication_id,omitempty"`
+	Path          string   `json:"path"`
+	ImportKey     string   `json:"import_key,omitempty"`
+	Action        string   `json:"action"`
+	Reason        string   `json:"reason,omitempty"`
+	PublicationID string   `json:"publication_id,omitempty"`
+	Title         string   `json:"title,omitempty"`
+	Section       string   `json:"section,omitempty"`
+	Edition       string   `json:"edition,omitempty"`
+	Changes       []string `json:"changes,omitempty"`
+
+	// What the manifest asks for, not part of the report.
+	note    string
+	pin     string
+	section int // index into the manifest's sections; -1 is the preamble
+}
+
+// sectionResult is one manifest section's outcome.
+type sectionResult struct {
+	Title     string `json:"title"`
+	Action    string `json:"action"` // create, present or update
+	SectionID string `json:"section_id,omitempty"`
 }
 
 // collectionResult is one manifest's outcome, and the shape --json emits.
 type collectionResult struct {
-	Path           string       `json:"path"`
-	ImportKey      string       `json:"import_key"`
-	CollectionType string       `json:"collection_type,omitempty"`
-	Action         string       `json:"action"`
-	CollectionID   string       `json:"collection_id,omitempty"`
-	Code           string       `json:"code,omitempty"`
-	Message        string       `json:"message,omitempty"`
-	Items          []itemResult `json:"items,omitempty"`
+	Path           string          `json:"path"`
+	ImportKey      string          `json:"import_key"`
+	CollectionType string          `json:"collection_type,omitempty"`
+	Action         string          `json:"action"`
+	CollectionID   string          `json:"collection_id,omitempty"`
+	Code           string          `json:"code,omitempty"`
+	Message        string          `json:"message,omitempty"`
+	Sections       []sectionResult `json:"sections,omitempty"`
+	Items          []itemResult    `json:"items,omitempty"`
 	// Reordered is true when the collection's order did not match the
 	// manifest's, and the run puts it back.
 	Reordered bool `json:"reordered,omitempty"`
@@ -84,6 +107,7 @@ func newCollectionCommand(e *env) *cobra.Command {
 		newCollectionPublishCommand(e),
 		newCollectionLsCommand(e),
 		newCollectionShowCommand(e),
+		newCollectionExportCommand(e),
 		newTranslationsCommand(e, collectionTranslations),
 	)
 	return cmd
@@ -98,9 +122,12 @@ func newCollectionPublishCommand(e *env) *cobra.Command {
 		Long: "Reconcile one or more collection manifests as LibreTimes collections.\n\n" +
 			"The manifest's frontmatter names the collection (`import_key`, " +
 			"`collection_type`, `title`, `language`) and lists the files of its works in " +
-			"order under `items`. Each work already published with `lt work publish` is " +
-			"added, in that order; works not published yet, or still drafts, are skipped " +
-			"and picked up by the next run. Nothing is ever removed. Run with --dry-run first.",
+			"order under `items` and, grouped under headings, `sections` (title, description, " +
+			"items). An item is a work file, a work id or URL, a DOI, an arXiv id or an ISBN, " +
+			"or a mapping {work, note, edition}. Works not on the site yet, or still drafts, " +
+			"are skipped and picked up by the next run. Re-runs find sections by title, add " +
+			"what is missing, set notes and edition pins, and put the order back; nothing is " +
+			"ever removed. Run with --dry-run first.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths, err := resolveFiles(args)
@@ -161,12 +188,21 @@ func renderCollection(e *env, r collectionResult) {
 		}
 		fmt.Fprintf(e.out, "  %-8s %-40s %s\n", r.Action, r.ImportKey, r.CollectionID)
 	}
+	for _, sec := range r.Sections {
+		fmt.Fprintf(e.out, "    section  %-8s %s\n", sec.Action, sec.Title)
+	}
 	for _, l := range r.Items {
 		trailing := l.PublicationID
 		if l.Action == itemSkip {
 			trailing = l.Reason
+		} else if len(l.Changes) > 0 {
+			trailing += " (" + strings.Join(l.Changes, ", ") + ")"
 		}
-		fmt.Fprintf(e.out, "    %-8s %-38s %s\n", l.Action, l.ImportKey, trailing)
+		label := l.ImportKey
+		if label == "" {
+			label = l.Path
+		}
+		fmt.Fprintf(e.out, "    %-8s %-38s %s\n", l.Action, label, trailing)
 	}
 	if r.Reordered {
 		fmt.Fprintln(e.out, "    reorder  items follow the manifest's order")
@@ -253,8 +289,22 @@ func newCollectionShowCommand(e *env) *cobra.Command {
 						fmt.Fprintf(w, "  translated  %s\n", strings.Join(langs, ", "))
 					}
 				}
+				titles := map[string]string{}
+				for _, sec := range coll.Sections {
+					titles[strings.ToLower(sec.ID)] = sec.Title
+				}
 				for i, item := range items {
-					fmt.Fprintf(w, "  %3d. %s %s\n", i+1, item.EntityType, item.EntityID)
+					line := fmt.Sprintf("  %3d. %s %s", i+1, item.EntityType, item.EntityID)
+					if title := titles[strings.ToLower(item.SectionID)]; title != "" {
+						line += "  [" + title + "]"
+					}
+					if item.ExpressionID != "" {
+						line += "  edition " + item.ExpressionID
+					}
+					fmt.Fprintln(w, line)
+					if item.Note != "" {
+						fmt.Fprintf(w, "       note: %s\n", item.Note)
+					}
 				}
 			})
 		},
@@ -285,12 +335,19 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 	// name the file rather than the collection.
 	result.ImportKey = strings.TrimSpace(meta.ImportKey)
 	result.CollectionType = strings.TrimSpace(meta.CollectionType)
+	if kind := strings.TrimSpace(meta.Kind); kind != "" {
+		if result.CollectionType != "" && result.CollectionType != kind {
+			result.invalid("`kind` (%s) and `collection_type` (%s) disagree; write one", kind, result.CollectionType)
+			return result
+		}
+		result.CollectionType = kind
+	}
 	switch {
 	case result.ImportKey == "":
 		result.invalid("frontmatter has no `import_key`; a collection needs one, e.g. <author>/<course>")
 		return result
 	case result.CollectionType == "":
-		result.invalid("frontmatter has no `collection_type`, which is required and has no default (one of %s)",
+		result.invalid("frontmatter has no `collection_type` (or `kind`), which is required and has no default (one of %s)",
 			strings.Join(api.CollectionTypeValues, ", "))
 		return result
 	case !slices.Contains(api.CollectionTypeValues, result.CollectionType):
@@ -310,12 +367,43 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 		return result
 	}
 
-	listed, err := resolveItems(ctx, client, path, meta.Items)
+	var entries []manifestEntry
+	for _, spec := range meta.Items {
+		entries = append(entries, manifestEntry{spec, -1})
+	}
+	seenTitle := map[string]bool{}
+	for si := range meta.Sections {
+		sec := &meta.Sections[si]
+		sec.Title = strings.TrimSpace(sec.Title)
+		switch {
+		case sec.Title == "":
+			result.invalid("section %d has no `title`", si+1)
+			return result
+		case len(sec.Title) > 255:
+			result.invalid("section %q: a title is at most 255 characters", sec.Title)
+			return result
+		case seenTitle[sec.Title]:
+			result.invalid("two sections are titled %q; a re-run finds a section by its title", sec.Title)
+			return result
+		}
+		seenTitle[sec.Title] = true
+		for _, spec := range sec.Items {
+			entries = append(entries, manifestEntry{spec, si})
+		}
+	}
+
+	listed, err := resolveItems(ctx, client, path, entries)
 	if err != nil {
 		result.setFailure(err)
 		return result
 	}
 	result.Items = listed
+	for i := range result.Items {
+		if sec := result.Items[i].section; sec >= 0 {
+			result.Items[i].Section = meta.Sections[sec].Title
+		}
+		result.Items[i].Edition = result.Items[i].pin
+	}
 
 	input := api.CollectionInput{
 		Title:           meta.Title,
@@ -324,6 +412,8 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 		Visibility:      meta.Visibility,
 		CollectionType:  result.CollectionType,
 		CategoryIDs:     meta.CategoryIDs,
+		Keywords:        meta.Keywords,
+		PublicComments:  meta.PublicComments,
 	}
 
 	existing, err := client.FindCollectionByImportKey(ctx, result.ImportKey)
@@ -334,7 +424,14 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 
 	if existing == nil {
 		result.Action = actionCreate
-		ids := markAllAdded(result.Items)
+		for i := range result.Items {
+			if result.Items[i].Action != itemSkip {
+				result.Items[i].Action = itemAdd
+			}
+		}
+		for _, sec := range meta.Sections {
+			result.Sections = append(result.Sections, sectionResult{Title: sec.Title, Action: actionCreate})
+		}
 		if dryRun {
 			return result
 		}
@@ -360,9 +457,27 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 			return result
 		}
 		result.CollectionID = created.ID
-		// Appended in manifest order, so positions already follow it.
-		if len(ids) > 0 {
-			if err := client.AddPublicationsToCollection(ctx, created.ID, ids); err != nil {
+		sectionIDs := make([]string, len(meta.Sections))
+		for si, sec := range meta.Sections {
+			made, err := client.CreateSection(ctx, created.ID, api.SectionInput{Title: sec.Title, Description: sec.Description})
+			if err != nil {
+				result.setFailure(fmt.Errorf("created, but adding section %q failed: %w", sec.Title, err))
+				return result
+			}
+			sectionIDs[si] = strings.ToLower(made.ID)
+			result.Sections[si].SectionID = sectionIDs[si]
+		}
+		// Appended in manifest order, preamble first, so positions already
+		// follow it and sections were created in their order.
+		var adds []api.ItemIn
+		for _, r := range result.Items {
+			if r.Action == itemSkip {
+				continue
+			}
+			adds = append(adds, itemIn(r, sectionIDs))
+		}
+		if len(adds) > 0 {
+			if err := client.AddWorksToCollection(ctx, created.ID, adds); err != nil {
 				result.setFailure(fmt.Errorf("created, but adding items failed: %w", err))
 			}
 		}
@@ -371,13 +486,74 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 
 	result.Action = actionUpdate
 	result.CollectionID = existing.ID
+	current, err := client.GetCollection(ctx, existing.ID)
+	if err != nil {
+		result.setFailure(fmt.Errorf("reading the collection: %w", err))
+		return result
+	}
 	items, err := client.ListCollectionItems(ctx, existing.ID)
 	if err != nil {
 		result.setFailure(fmt.Errorf("reading the collection's items: %w", err))
 		return result
 	}
-	toAdd, desired := diffItems(result.Items, items)
-	result.Reordered = needsReorder(items, toAdd, desired)
+
+	// Sections are found by title. An existing one is reused, a missing one is
+	// created, and one the manifest does not name is left alone.
+	wantSection := make([]string, len(meta.Sections))
+	sectionIDs := make([]string, len(meta.Sections))
+	for si, sec := range meta.Sections {
+		sr := sectionResult{Title: sec.Title, Action: actionCreate}
+		wantSection[si] = "new:" + sec.Title
+		for _, have := range current.Sections {
+			if strings.TrimSpace(have.Title) == sec.Title {
+				sectionIDs[si] = strings.ToLower(have.ID)
+				wantSection[si] = sectionIDs[si]
+				sr.SectionID = sectionIDs[si]
+				sr.Action = itemPresent
+				if sec.Description != "" && sec.Description != have.Description {
+					sr.Action = actionUpdate
+				}
+				break
+			}
+		}
+		result.Sections = append(result.Sections, sr)
+	}
+
+	byWork := map[string]api.CollectionItem{}
+	for _, it := range items {
+		byWork[strings.ToLower(it.EntityID)] = it
+	}
+	for i := range result.Items {
+		r := &result.Items[i]
+		if r.Action == itemSkip {
+			continue
+		}
+		have, ok := byWork[r.PublicationID]
+		if !ok {
+			r.Action = itemAdd
+			continue
+		}
+		r.Action = itemPresent
+		if r.note != "" && r.note != have.Note {
+			r.Changes = append(r.Changes, "note")
+		}
+		if r.pin != "" && r.pin != strings.ToLower(have.ExpressionID) {
+			r.Changes = append(r.Changes, "edition")
+		}
+		wantKey := ""
+		if r.section >= 0 {
+			wantKey = wantSection[r.section]
+		}
+		if wantKey != strings.ToLower(have.SectionID) {
+			r.Changes = append(r.Changes, "section")
+		}
+		if len(r.Changes) > 0 {
+			r.Action = itemUpdate
+		}
+	}
+
+	final, actual := planOrder(current.Sections, items, result.Items, wantSection)
+	result.Reordered = !sameOrder(final, actual)
 	result.Unlisted = countUnlisted(items, result.Items)
 	if dryRun {
 		return result
@@ -387,131 +563,98 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 		result.setFailure(err)
 		return result
 	}
-	if len(toAdd) > 0 {
-		if err := client.AddPublicationsToCollection(ctx, existing.ID, toAdd); err != nil {
+	for si, sec := range meta.Sections {
+		sr := &result.Sections[si]
+		switch sr.Action {
+		case actionCreate:
+			made, err := client.CreateSection(ctx, existing.ID, api.SectionInput{Title: sec.Title, Description: sec.Description})
+			if err != nil {
+				result.setFailure(fmt.Errorf("updated, but adding section %q failed: %w", sec.Title, err))
+				return result
+			}
+			sectionIDs[si] = strings.ToLower(made.ID)
+			sr.SectionID = sectionIDs[si]
+		case actionUpdate:
+			if err := client.UpdateSection(ctx, existing.ID, sectionIDs[si], api.SectionInput{Description: sec.Description}); err != nil {
+				result.setFailure(fmt.Errorf("updated, but changing section %q failed: %w", sec.Title, err))
+				return result
+			}
+		}
+	}
+	var adds []api.ItemIn
+	for _, r := range result.Items {
+		if r.Action == itemAdd {
+			adds = append(adds, itemIn(r, sectionIDs))
+		}
+	}
+	if len(adds) > 0 {
+		if err := client.AddWorksToCollection(ctx, existing.ID, adds); err != nil {
 			result.setFailure(fmt.Errorf("updated, but adding items failed: %w", err))
 			return result
 		}
 	}
+	for _, r := range result.Items {
+		fields := map[string]any{}
+		if slices.Contains(r.Changes, "note") {
+			fields["note"] = r.note
+		}
+		if slices.Contains(r.Changes, "edition") {
+			fields["expression_id"] = r.pin
+		}
+		if len(fields) == 0 {
+			continue
+		}
+		if err := client.UpdateCollectionItem(ctx, existing.ID, r.PublicationID, fields); err != nil {
+			result.setFailure(fmt.Errorf("updated, but setting %s failed: %w", r.Path, err))
+			return result
+		}
+	}
 	if result.Reordered {
-		if err := client.ReorderCollection(ctx, existing.ID, desired); err != nil {
+		if err := sendOrder(ctx, client, existing.ID, final, wantSection, sectionIDs, len(current.Sections) == 0 && len(meta.Sections) == 0); err != nil {
 			result.setFailure(fmt.Errorf("updated, but reordering items failed: %w", err))
 		}
 	}
 	return result
 }
 
-// resolveItems reads each listed work file for its import key and finds the
-// publication holding it. Paths are relative to the manifest.
-func resolveItems(ctx context.Context, client *api.Client, manifest string, listed []string) ([]itemResult, error) {
-	dir := filepath.Dir(manifest)
-	results := make([]itemResult, 0, len(listed))
-	seen := map[string]string{}
-
-	for _, entry := range listed {
-		itemPath := filepath.FromSlash(entry)
-		if !filepath.IsAbs(itemPath) {
-			itemPath = filepath.Join(dir, itemPath)
-		}
-		raw, err := os.ReadFile(itemPath)
-		if err != nil {
-			return nil, fmt.Errorf("item %s: %w", entry, err)
-		}
-		meta, _, err := frontmatter.Split[frontmatter.Meta](string(raw))
-		if err != nil {
-			return nil, fmt.Errorf("item %s: %w", entry, err)
-		}
-		key := strings.TrimSpace(meta.ImportKey)
-		if key == "" {
-			key = defaultImportKey(itemPath)
-		}
-		if first, dup := seen[key]; dup {
-			return nil, fmt.Errorf("items %s and %s share the import_key %q; list each work once",
-				first, entry, key)
-		}
-		seen[key] = entry
-		results = append(results, itemResult{Path: entry, ImportKey: key})
+// itemIn is the add body for one listed work.
+func itemIn(r itemResult, sectionIDs []string) api.ItemIn {
+	in := api.ItemIn{EntityID: r.PublicationID, Note: r.note, ExpressionID: r.pin}
+	if r.section >= 0 {
+		in.SectionID = sectionIDs[r.section]
 	}
-
-	for i := range results {
-		ref, err := client.FindPublicationByImportKey(ctx, results[i].ImportKey)
-		if err != nil {
-			return nil, fmt.Errorf("item %s: %w", results[i].Path, err)
-		}
-		if ref == nil {
-			results[i].Action, results[i].Reason = itemSkip, skipNotPublished
-			continue
-		}
-		// Kept on a skipped item too, so one that was added and later
-		// deleted is recognised in the collection rather than counted as an
-		// item the manifest does not name.
-		results[i].PublicationID = strings.ToLower(ref.ID)
-		switch {
-		case ref.Removed:
-			results[i].Action, results[i].Reason = itemSkip, skipDeleted
-		case ref.IsDraft:
-			results[i].Action, results[i].Reason = itemSkip, skipDraft
-		}
-	}
-	return results, nil
+	return in
 }
 
-// markAllAdded is the create case: every published work is new.
-func markAllAdded(listed []itemResult) []string {
-	var ids []string
-	for i := range listed {
-		if listed[i].Action == itemSkip {
-			continue
+// sendOrder puts the planned order on the server. A collection with no
+// sections at all takes the flat form; otherwise every section is listed once,
+// the sections the manifest created by the id the server gave them.
+func sendOrder(ctx context.Context, client *api.Client, id string, final []orderGroup,
+	wantSection, sectionIDs []string, flat bool) error {
+	if flat {
+		var ids []string
+		for _, g := range final {
+			ids = append(ids, g.ids...)
 		}
-		listed[i].Action = itemAdd
-		ids = append(ids, listed[i].PublicationID)
+		return client.ReorderCollection(ctx, id, ids)
 	}
-	return ids
-}
-
-// diffItems marks each published work present or add, and returns the ids to
-// add and the manifest's order of every published work.
-//
-// A skipped work already in the collection -- deleted after it was added -- is
-// reported as skipped and left where it is. It is not part of the desired
-// order, so a reorder leaves its position alone.
-func diffItems(listed []itemResult, items []api.CollectionItem) (toAdd, desired []string) {
-	present := make(map[string]bool, len(items))
-	for _, item := range items {
-		present[strings.ToLower(item.EntityID)] = true
+	created := map[string]string{}
+	for i, key := range wantSection {
+		created[key] = sectionIDs[i]
 	}
-	for i := range listed {
-		if listed[i].Action == itemSkip {
-			continue
+	groups := make([]api.OrderGroup, 0, len(final))
+	for _, g := range final {
+		group := api.OrderGroup{EntityIDs: append([]string{}, g.ids...)}
+		if g.key != "" {
+			sid := g.key
+			if mapped, ok := created[g.key]; ok {
+				sid = mapped
+			}
+			group.SectionID = &sid
 		}
-		id := listed[i].PublicationID
-		desired = append(desired, id)
-		if present[id] {
-			listed[i].Action = itemPresent
-		} else {
-			listed[i].Action = itemAdd
-			toAdd = append(toAdd, id)
-		}
+		groups = append(groups, group)
 	}
-	return toAdd, desired
-}
-
-// needsReorder reports whether, after appending toAdd, the manifest's works
-// would sit in the collection in an order other than the manifest's. Items the
-// manifest does not name are ignored: they keep their positions either way.
-func needsReorder(items []api.CollectionItem, toAdd, desired []string) bool {
-	wanted := make(map[string]bool, len(desired))
-	for _, id := range desired {
-		wanted[id] = true
-	}
-	var after []string
-	for _, item := range items {
-		if id := strings.ToLower(item.EntityID); wanted[id] {
-			after = append(after, id)
-		}
-	}
-	after = append(after, toAdd...)
-	return !slices.Equal(after, desired)
+	return client.ReorderCollectionSections(ctx, id, groups)
 }
 
 // countUnlisted counts items that no work in the manifest accounts for,
@@ -530,4 +673,58 @@ func countUnlisted(items []api.CollectionItem, named []itemResult) int {
 		}
 	}
 	return n
+}
+
+func newCollectionExportCommand(e *env) *cobra.Command {
+	var lang, format, output string
+
+	cmd := &cobra.Command{
+		Use:   "export <collection>",
+		Short: "Write a collection's list as CSL-JSON",
+		Long: "Write the collection as a CSL-JSON array, one entry per work in list order, " +
+			"each with the owner's `note` and its section as `x-section`. At most 1000 entries. " +
+			"Every citation tool reads CSL-JSON; for BibTeX use pandoc:\n\n" +
+			"  lt collection export <collection> | pandoc -f csljson -t biblatex\n\n" +
+			"<collection> is an id, a /collections/<id> URL or a manifest file.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if format != "csl-json" {
+				return fail(ExitBadArguments, "--format %q is not supported; the only format is csl-json "+
+					"(convert it with pandoc for BibTeX)", format)
+			}
+			client, _, err := e.client(cmd.Context(), true, config.ProductLibreTimes)
+			if err != nil {
+				return err
+			}
+			id, err := resolveCollection(cmd.Context(), client, args[0])
+			if err != nil {
+				return err
+			}
+			data, err := client.ExportCollection(cmd.Context(), id, lang)
+			if err != nil {
+				return err
+			}
+			var pretty bytes.Buffer
+			if err := json.Indent(&pretty, data, "", "  "); err != nil {
+				pretty.Reset()
+				pretty.Write(data)
+			}
+			pretty.WriteByte('\n')
+			if output != "" && output != "-" {
+				if err := os.WriteFile(output, pretty.Bytes(), 0o644); err != nil {
+					return fail(ExitBadArguments, "%s: %v", output, err)
+				}
+				if !e.quiet {
+					fmt.Fprintf(e.err, "wrote %s\n", output)
+				}
+				return nil
+			}
+			_, err = e.out.Write(pretty.Bytes())
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&lang, "lang", "", "Language the list is read in (the edition shown for a work with no pin).")
+	cmd.Flags().StringVar(&format, "format", "csl-json", "Output format: csl-json.")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Write to this file instead of stdout.")
+	return cmd
 }

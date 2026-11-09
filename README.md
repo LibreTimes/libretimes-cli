@@ -120,6 +120,7 @@ lt work translations rm WORK LANG...
 lt collection publish MANIFEST...         reconcile a course or a curated list
 lt collection ls
 lt collection show COLLECTION
+lt collection export COLLECTION           the list as CSL-JSON (-o FILE, --lang)
 lt collection translations set|ls|rm      as for a work; title and description only
 ```
 
@@ -343,13 +344,15 @@ will add, `present` for one already there.
 ### Collections
 
 A collection is an ordered list of works: a course (one lecture course's notes
-and sheets, in order), a plain curated `collection`, or a `recommendation` list.
-It is described by a manifest, usually the `README.md` in its folder:
+and sheets, in order), a plain curated `collection`, a `recommendation` list, or
+a `reading_list` (a bibliography: sections, a note under each reference, a
+pinned edition). It is described by a manifest, usually the `README.md` in its
+folder:
 
 ```yaml
 ---
 import_key: ivanov/analysis-1          # required; identifies the collection on re-runs
-collection_type: course                 # required: course, collection or recommendation
+collection_type: course                 # required: course, collection, recommendation or reading_list (`kind:` also works)
 title: Analysis 1 (autumn 2026)         # required
 language: en                            # required; the language of title and description
 description: Notes from the lectures.   # optional
@@ -387,6 +390,67 @@ lt collection publish ivanov/analysis-1/README.md --yes
 
 `--dry-run` reports `create` or `update` for the collection and `add`,
 `present` or `skip` for each work.
+
+#### Sections, notes and editions
+
+A reading list groups its items under headings. `items:` at the top are the
+unsectioned preamble that reads first; each entry of `sections:` has a `title`,
+an optional `description` and its own `items:`. An item is a string or a
+mapping:
+
+```yaml
+---
+import_key: ivanov/topology-reading
+kind: reading_list
+title: Topology reading list
+language: en
+keywords: [topology, algebra]           # free terms that name no category
+public_comments: false                  # whether the discussion is open
+items:
+  - 10.1007/978-1-4612-0647-7           # a DOI
+sections:
+  - title: Basics
+    description: Start here.
+    items:
+      - lecture-01.md                                   # a work file you published
+      - https://libretimes.io/works/019f8f79-4915-7fa3-aa13-4604b0de40b5
+      - work: 978-0-387-95295-4                         # an ISBN: also pins that edition
+        note: Chapters 1 to 3 are enough.
+  - title: Further
+    items:
+      - work: 019f8f79-4915-7fa3-aa13-4604b0de40b6
+        edition: 019f8f79-4915-7fa3-aa13-4604b0de40b7   # pin an edition (an expression id)
+---
+```
+
+- **An item names a work the site already holds.** A work file (by its
+  `import_key`), a work id, a `/works/<id>` URL (with or without a language
+  prefix), a DOI, an arXiv id or URL, or an ISBN. A DOI, arXiv id or ISBN
+  matches only a work that is already indexed (`skip: not_indexed` otherwise):
+  `lt` never creates a work. An ISBN also pins the edition that carries it; two
+  matches fail the manifest and list the candidates. `book:<key>` (a catalogue
+  import key) is refused, as the public API cannot read it: use the book's URL
+  or ISBN.
+- **`note`** (at most 2000 characters) shows under the reference. **`edition`**
+  pins one edition of the work, by expression id; a pin that is not an edition
+  of the work is refused.
+- **Re-runs are idempotent.** Sections are found by title and created when
+  missing, so keep titles unique; notes and pins are set where the manifest
+  states them; a work is moved to its section and the section-aware order is put
+  back. Nothing is removed: a section or work the manifest does not name stays.
+
+#### Export and BibTeX
+
+```sh
+lt collection export ivanov/topology-reading/README.md -o reading.json
+lt collection export 019f8f79-... --lang ru
+lt collection export 019f8f79-... | pandoc -f csljson -t biblatex > reading.bib   # or -t bibtex
+```
+
+The export is a CSL-JSON array in list order (at most 1000 entries); each entry
+carries the owner's `note` and its section as `x-section`. Every citation tool
+reads CSL-JSON, and pandoc converts it to BibLaTeX or BibTeX
+(`-t biblatex`, `-t bibtex`, both checked; pandoc has no RIS writer).
 
 ### Books
 

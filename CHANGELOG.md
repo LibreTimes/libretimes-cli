@@ -79,6 +79,17 @@ stays there, serving MCP.
   manifest's order. Skips works that are unpublished, drafts or deleted; never
   removes an item. `--dry-run` and `--yes`. `lt collection ls`, `lt collection
   show`. Needs the platform's collection `import_key` (#1040).
+- `lt collection publish` reads `sections:` (title, description, items) beside
+  `items:`, `kind: reading_list`, `keywords:` and `public_comments:`. An item is
+  a work file, a work id or URL, a DOI, an arXiv id, an ISBN, or a mapping
+  `{work, note, edition}`; a DOI, arXiv id or ISBN finds only a work the site
+  already holds, and an ISBN pins the edition that carries it. Re-runs find
+  sections by title, add what is missing, set notes and pins, and restore the
+  section-aware order; nothing is removed. `lt collection show` lists sections,
+  notes and pins.
+- `lt collection export COLLECTION [--lang ru] [-o FILE]` — the list as
+  CSL-JSON, in list order, with each item's note and `x-section`; BibTeX via
+  `| pandoc -f csljson -t biblatex`.
 - `lt work publish` with `type: book` — reconciles a book manifest (a contents tree, one markdown
   file per chapter) as a publication of type `book` by its `import_key`:
   creates it as a draft, creates, updates and moves chapters to match the
