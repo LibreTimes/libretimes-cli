@@ -117,6 +117,11 @@ type Client struct {
 	baseURL string
 	token   string
 	http    *http.Client
+	// storage talks to object storage: the presigned upload and download URLs
+	// the API hands out. It shares the transport and never carries the bearer
+	// token -- those URLs are signed on their own, and a token sent to the
+	// storage host is a token sent to a host that was never meant to see it.
+	storage *http.Client
 	version string
 }
 
@@ -141,19 +146,24 @@ func New(baseURL, token, version string) *Client {
 		ForceAttemptHTTP2:     true,
 	}
 
+	// Never follow a redirect. A redirect chased with an Authorization header
+	// attached is how a bearer token ends up at a host that was never meant to
+	// see it; the storage client follows none either, since a signed URL that
+	// redirects is not one lt was given.
+	noRedirect := func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &Client{
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		token:   token,
 		version: version,
 		http: &http.Client{
-			Transport: transport,
-			Timeout:   scaled(defaultOverallTimeout, factor),
-			// Never follow a redirect. A redirect chased with an
-			// Authorization header attached is how a bearer token ends up at
-			// a host that was never meant to see it.
-			CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
+			Transport:     transport,
+			Timeout:       scaled(defaultOverallTimeout, factor),
+			CheckRedirect: noRedirect,
+		},
+		storage: &http.Client{
+			Transport:     transport,
+			Timeout:       scaled(defaultOverallTimeout, factor),
+			CheckRedirect: noRedirect,
 		},
 	}
 }
@@ -173,6 +183,14 @@ func (c *Client) Patch(ctx context.Context, path string, body, out any) error {
 	return c.do(ctx, http.MethodPatch, path, nil, body, out)
 }
 
+func (c *Client) Put(ctx context.Context, path string, body, out any) error {
+	return c.do(ctx, http.MethodPut, path, nil, body, out)
+}
+
+func (c *Client) Delete(ctx context.Context, path string) error {
+	return c.do(ctx, http.MethodDelete, path, nil, nil, nil)
+}
+
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body, out any) error {
 	var reader io.Reader
 	if body != nil {
@@ -183,6 +201,17 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		reader = bytes.NewReader(encoded)
 	}
 
+	contentType := ""
+	if body != nil {
+		contentType = "application/json"
+	}
+	return c.send(ctx, method, path, query, contentType, reader, out)
+}
+
+// send is do for a body that is already encoded -- JSON from do, or a
+// multipart form -- so every request shares one error mapping.
+func (c *Client) send(ctx context.Context, method, path string, query url.Values,
+	contentType string, reader io.Reader, out any) error {
 	target := c.baseURL + path
 	if len(query) > 0 {
 		target += "?" + query.Encode()
@@ -196,8 +225,8 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	req.Header.Set("Accept", "application/json")
 	// Identifies the caller in logs. Not a credential.
 	req.Header.Set("User-Agent", userAgentProduct+"/"+c.version+" (+https://libretimes.io)")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)

@@ -60,7 +60,7 @@ func TestCreateCarriesTheResolvedCredit(t *testing.T) {
 		t.Fatalf("action = %q, want %q (%s)", result.Action, actionCreate, result.Message)
 	}
 	want := "GET /profiles/me | GET /profiles/ivanov-ii-a1b2c3 | " +
-		"GET /publications/me/by-import-key | POST /publications"
+		"GET /works/me/by-import-key | POST /works"
 	if rec.calls() != want {
 		t.Errorf("calls = %q, want %q", rec.calls(), want)
 	}
@@ -120,10 +120,10 @@ func TestUpdateInvitesOnlyTheMissingCredits(t *testing.T) {
 		case strings.HasSuffix(r.URL.Path, "/by-import-key"):
 			w.Write([]byte(`{"id":"pub-7","removed":false}`))
 			return true
-		case r.Method == http.MethodGet && r.URL.Path == "/publications/pub-7/authors":
+		case r.Method == http.MethodGet && r.URL.Path == "/works/pub-7/authors":
 			w.Write([]byte(`[
-				{"profile_id":"` + selfID + `","role":"author","status":"accepted"},
-				{"profile_id":"` + lecturerID + `","role":"lecturer","status":"declined"}
+				{"profile_id":"` + selfID + `","role":"author","consent":"accepted"},
+				{"profile_id":"` + lecturerID + `","role":"lecturer","consent":"declined"}
 			]`))
 			return true
 		}
@@ -137,8 +137,8 @@ func TestUpdateInvitesOnlyTheMissingCredits(t *testing.T) {
 		t.Fatalf("action = %q (%s)", result.Action, result.Message)
 	}
 	want := "GET /profiles/me | GET /profiles/ivanov-ii-a1b2c3 | GET /profiles/petrov | " +
-		"GET /publications/me/by-import-key | GET /publications/pub-7/authors | " +
-		"PATCH /publications/pub-7 | POST /publications/pub-7/authors"
+		"GET /works/me/by-import-key | GET /works/pub-7/authors | " +
+		"PATCH /works/pub-7 | POST /works/pub-7/authors"
 	if rec.calls() != want {
 		t.Errorf("calls = %q\nwant    %q", rec.calls(), want)
 	}
@@ -162,8 +162,8 @@ func TestDryRunReportsTheBylineDiffWithoutWriting(t *testing.T) {
 		case strings.HasSuffix(r.URL.Path, "/by-import-key"):
 			w.Write([]byte(`{"id":"pub-7","removed":false}`))
 			return true
-		case r.URL.Path == "/publications/pub-7/authors":
-			w.Write([]byte(`[{"profile_id":"` + lecturerID + `","role":"author","status":"accepted"}]`))
+		case r.URL.Path == "/works/pub-7/authors":
+			w.Write([]byte(`[{"profile_id":"` + lecturerID + `","role":"author","consent":"accepted"}]`))
 			return true
 		}
 		return profilesHandler(w, r)
@@ -198,7 +198,7 @@ func TestNoContributorsCostsNoExtraRequest(t *testing.T) {
 	path := writeFile(t, t.TempDir(), "doc.md", sampleDoc)
 	publishOne(context.Background(), api.New(rec.server.URL, "tok", "test"), path, false, nil)
 
-	if want := "GET /publications/me/by-import-key | PATCH /publications/pub-7"; rec.calls() != want {
+	if want := "GET /works/me/by-import-key | PATCH /works/pub-7"; rec.calls() != want {
 		t.Errorf("calls = %q, want %q", rec.calls(), want)
 	}
 }

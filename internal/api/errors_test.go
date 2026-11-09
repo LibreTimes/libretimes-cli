@@ -221,3 +221,13 @@ func TestSessionRevokedExplainsWhyRetryingFails(t *testing.T) {
 		}
 	}
 }
+
+// An index of 0 is a number, not nothing: trimming zeros off "0" once blanked
+// it, so a refusal of the first change read "item : ambiguous".
+func TestDetailNamesIndexZero(t *testing.T) {
+	body := []byte(`{"results":[{"index":0,"ok":false,"error":"ambiguous","occurrences":2}]}`)
+	got := FromResponse(422, body, "").Message
+	if !strings.Contains(got, "item 0: ambiguous: `old` occurs 2 times") {
+		t.Fatalf("message = %q", got)
+	}
+}
