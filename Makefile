@@ -82,10 +82,12 @@ WATCHED_PATHS = \
 	'/libretimes/v1/collections/{collection_id}/items/order' \
 	/libretimes/v1/profiles/me \
 	'/libretimes/v1/profiles/{username}' \
-	/libretimes/v1/publications \
-	/libretimes/v1/publications/me/by-import-key \
-	'/libretimes/v1/publications/{pub_id}' \
-	'/libretimes/v1/publications/{pub_id}/authors' \
+	/libretimes/v1/works \
+	/libretimes/v1/works/me/by-import-key \
+	/libretimes/v1/works/resolve \
+	'/libretimes/v1/works/{work_id}' \
+	'/libretimes/v1/works/{work_id}/authors' \
+	'/libretimes/v1/works/{work_id}/expressions' \
 	'/libretimes/v1/works/{work_id}/contents' \
 	'/libretimes/v1/works/{work_id}/expressions/{expression_id}/divisions' \
 	'/libretimes/v1/works/{work_id}/expressions/{expression_id}/divisions/{division_id}' \
