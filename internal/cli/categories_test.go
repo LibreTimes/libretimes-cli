@@ -2,11 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/The-LibreTimes/libretimes-cli/internal/api"
 )
 
 // The taxonomy reads are public: `lt categories` must work with no sign-in
@@ -101,5 +104,91 @@ func TestCategoriesResolveNeedsSomething(t *testing.T) {
 	_, err, _ := runCategories(t, func(w http.ResponseWriter, r *http.Request) {}, "categories", "resolve")
 	if err == nil || !strings.Contains(err.Error(), "at least one term") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+const termsDoc = `---
+title: Книги по алгебре
+type: notes
+language: ru
+import_key: lt:tests/terms
+tags: [линейная алгебра, книги]
+categories: [algebra]
+category_ids: [019f60ef-0000-7000-8000-000000000000]
+---
+Body.`
+
+// A file's tags and categories go to the server as written (it resolves
+// them), category_ids still go but warn, and the save's report comes back on
+// the result.
+func TestPublishSendsTermsAsWrittenAndKeepsTheReport(t *testing.T) {
+	rec := newRecorder(t, func(w http.ResponseWriter, r *http.Request) bool {
+		if strings.HasSuffix(r.URL.Path, "/by-import-key") {
+			w.WriteHeader(http.StatusNotFound)
+			return true
+		}
+		if r.Method == http.MethodPost {
+			w.Write([]byte(`{"id":"w1","terms":[
+				{"term":"algebra","field":"categories","became":"category","category":{"id":"c","key":"algebra","name":"Алгебра","context":"Математика","match":"key"}},
+				{"term":"линейная алгебра","field":"tags","became":"category","code":"TAG_IS_CATEGORY","category":` + hitJSON + `},
+				{"term":"книги","field":"tags","became":"keyword","code":"GENERIC_TAG"}]}`))
+			return true
+		}
+		return false
+	})
+	path := writeFile(t, t.TempDir(), "doc.md", termsDoc)
+	result := publishOne(context.Background(), api.New(rec.server.URL, "tok", "test"), path, false, nil)
+	if result.Action != actionCreate {
+		t.Fatalf("action = %q (%s)", result.Action, result.Message)
+	}
+	body := rec.bodies[0]
+	if tags, _ := body["tags"].([]any); len(tags) != 2 || tags[0] != "линейная алгебра" {
+		t.Errorf("tags = %v", body["tags"])
+	}
+	if cats, _ := body["categories"].([]any); len(cats) != 1 || cats[0] != "algebra" {
+		t.Errorf("categories = %v", body["categories"])
+	}
+	if _, folded := body["keywords"]; folded {
+		t.Errorf("tags were folded into keywords: %v", body["keywords"])
+	}
+	if len(result.Terms) != 3 || result.Terms[1].Code != "TAG_IS_CATEGORY" {
+		t.Errorf("terms = %+v", result.Terms)
+	}
+	if len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], "deprecated") {
+		t.Errorf("warnings = %v", result.Warnings)
+	}
+	var out, errOut bytes.Buffer
+	renderResult(&env{out: &out, err: &errOut}, result)
+	for _, want := range []string{`"книги" -> keyword [GENERIC_TAG`, `-> category linear-algebra (Linear algebra — Algebra · Mathematics)`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q:\n%s", want, out.String())
+		}
+	}
+	if !strings.Contains(errOut.String(), "category_ids` is deprecated") {
+		t.Errorf("no deprecation warning on stderr: %q", errOut.String())
+	}
+}
+
+// An unknown key is a 422 that names what it might have meant.
+func TestAnUnknownKeyFailsWithItsSuggestions(t *testing.T) {
+	rec := newRecorder(t, func(w http.ResponseWriter, r *http.Request) bool {
+		if strings.HasSuffix(r.URL.Path, "/by-import-key") {
+			w.WriteHeader(http.StatusNotFound)
+			return true
+		}
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		w.Write([]byte(`{"error":{"status_code":422,"detail":{"error_code":"CATEGORY_NOT_FOUND",
+			"message":"Unknown category key: algebre","terms":[{"term":"algebre","field":"categories",
+			"became":"dropped","code":"CATEGORY_NOT_FOUND","suggestions":[` + hitJSON + `]}]}}}`))
+		return true
+	})
+	path := writeFile(t, t.TempDir(), "doc.md", strings.Replace(termsDoc, "[algebra]", "[algebre]", 1))
+	result := publishOne(context.Background(), api.New(rec.server.URL, "tok", "test"), path, false, nil)
+	if result.Action != actionFailed || result.Code != "validation_error" {
+		t.Fatalf("result = %+v", result)
+	}
+	if !strings.Contains(result.Message, `Unknown category key: algebre`) ||
+		!strings.Contains(result.Message, `"algebre": did you mean linear-algebra?`) {
+		t.Errorf("message = %q", result.Message)
 	}
 }

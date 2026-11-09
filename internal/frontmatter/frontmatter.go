@@ -27,6 +27,7 @@ type Meta struct {
 	AIUsage     string     `yaml:"ai_usage"`
 	IsDraft     *bool      `yaml:"is_draft"`
 	Tags        StringList `yaml:"tags"`
+	Categories  StringList `yaml:"categories"`
 	CategoryIDs StringList `yaml:"category_ids"`
 	// Contributors are the names credited on the byline besides the signed-in
 	// account, which owns the publication and is on it already.
@@ -51,6 +52,8 @@ type CollectionMeta struct {
 	Language       string     `yaml:"language"`
 	Visibility     string     `yaml:"visibility"`
 	CategoryIDs    StringList `yaml:"category_ids"`
+	Categories     StringList `yaml:"categories"`
+	Tags           StringList `yaml:"tags"`
 	Keywords       StringList `yaml:"keywords"`
 	PublicComments *bool      `yaml:"public_comments"`
 	// Items sit before the first section (the unsectioned preamble).
@@ -126,6 +129,7 @@ type BookMeta struct {
 	AIUsage      string         `yaml:"ai_usage"`
 	IsDraft      *bool          `yaml:"is_draft"`
 	Tags         StringList     `yaml:"tags"`
+	Categories   StringList     `yaml:"categories"`
 	CategoryIDs  StringList     `yaml:"category_ids"`
 	Contributors []Contributor  `yaml:"contributors"`
 	Contents     []ContentEntry `yaml:"contents"`

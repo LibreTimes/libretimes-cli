@@ -2,8 +2,11 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // CategoryHit is one category a term found (TAXONOMY-INPUT T6): its label in
@@ -97,4 +100,70 @@ func (c *Client) ResolveTerms(ctx context.Context, in ResolveTermsInput) (*Resol
 		return nil, err
 	}
 	return &out, nil
+}
+
+// TermReport is what one term, key or dropped id of a save became
+// (TAXONOMY-INPUT T9): the `terms` list a work or collection write answers
+// with. Code is TAG_IS_CATEGORY (a term named a category), GENERIC_TAG (a
+// keyword too general to help, kept), CATEGORY_NOT_FOUND (a key or id that is
+// no category), or empty.
+type TermReport struct {
+	Term        string        `json:"term"`
+	Field       string        `json:"field"`
+	Became      string        `json:"became"`
+	Code        string        `json:"code,omitempty"`
+	Category    *CategoryHit  `json:"category,omitempty"`
+	Suggestions []CategoryHit `json:"suggestions,omitempty"`
+}
+
+// Line is the report entry as a person reads it.
+func (t TermReport) Line() string {
+	switch t.Became {
+	case "category":
+		if t.Category != nil {
+			return fmt.Sprintf("%q -> category %s (%s)", t.Term, t.Category.Key, t.Category.Label())
+		}
+	case "keyword":
+		line := fmt.Sprintf("%q -> keyword", t.Term)
+		if t.Code == "GENERIC_TAG" {
+			line += " [GENERIC_TAG: too general to help a reader]"
+		}
+		if hint := suggestionKeys(t.Suggestions); hint != "" {
+			line += "; did you mean " + hint + "?"
+		}
+		return line
+	}
+	line := fmt.Sprintf("%q (%s) -> %s", t.Term, t.Field, t.Became)
+	if t.Code != "" {
+		line += " [" + t.Code + "]"
+	}
+	return line
+}
+
+func suggestionKeys(hits []CategoryHit) string {
+	keys := make([]string, 0, len(hits))
+	for _, h := range hits {
+		keys = append(keys, h.Key)
+	}
+	return strings.Join(keys, ", ")
+}
+
+// termsOf reads the `terms` a refused save names, from an error envelope's
+// structured detail: `{"error": {"detail": {"error_code", "message", "terms"}}}`.
+func termsOf(body []byte) []TermReport {
+	var envelope struct {
+		Error struct {
+			Detail json.RawMessage `json:"detail"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(body, &envelope) != nil || len(envelope.Error.Detail) == 0 {
+		return nil
+	}
+	var detail struct {
+		Terms []TermReport `json:"terms"`
+	}
+	if json.Unmarshal(envelope.Error.Detail, &detail) != nil {
+		return nil
+	}
+	return detail.Terms
 }

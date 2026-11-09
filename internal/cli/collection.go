@@ -81,6 +81,10 @@ type collectionResult struct {
 	// Unlisted counts items in the collection that the manifest does not name.
 	// They are left where they are.
 	Unlisted int `json:"unlisted,omitempty"`
+	// Terms is what the save made of the manifest's tags, keywords and
+	// categories (TAXONOMY-INPUT T12: the same logic as a work).
+	Terms    []api.TermReport `json:"terms,omitempty"`
+	Warnings []string         `json:"warnings,omitempty"`
 }
 
 func (r *collectionResult) setFailure(err error) {
@@ -177,6 +181,9 @@ func newCollectionPublishCommand(e *env) *cobra.Command {
 }
 
 func renderCollection(e *env, r collectionResult) {
+	for _, w := range r.Warnings {
+		fmt.Fprintf(e.err, "  warning  %-40s %s\n", r.ImportKey, w)
+	}
 	if r.Action == actionFailed {
 		fmt.Fprintf(e.err, "  %-8s %-40s %s: %s\n", r.Action, r.ImportKey, r.Code, r.Message)
 		if r.CollectionID == "" {
@@ -188,6 +195,7 @@ func renderCollection(e *env, r collectionResult) {
 		}
 		fmt.Fprintf(e.out, "  %-8s %-40s %s\n", r.Action, r.ImportKey, r.CollectionID)
 	}
+	renderTerms(e.out, r.Terms)
 	for _, sec := range r.Sections {
 		fmt.Fprintf(e.out, "    section  %-8s %s\n", sec.Action, sec.Title)
 	}
@@ -413,8 +421,11 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 		CollectionType:  result.CollectionType,
 		CategoryIDs:     meta.CategoryIDs,
 		Keywords:        meta.Keywords,
+		Tags:            meta.Tags,
+		Categories:      meta.Categories,
 		PublicComments:  meta.PublicComments,
 	}
+	result.Warnings = categoryIDsWarning(meta.CategoryIDs)
 
 	existing, err := client.FindCollectionByImportKey(ctx, result.ImportKey)
 	if err != nil {
@@ -457,6 +468,7 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 			return result
 		}
 		result.CollectionID = created.ID
+		result.Terms = created.Terms
 		sectionIDs := make([]string, len(meta.Sections))
 		for si, sec := range meta.Sections {
 			made, err := client.CreateSection(ctx, created.ID, api.SectionInput{Title: sec.Title, Description: sec.Description})
@@ -559,10 +571,12 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 		return result
 	}
 
-	if _, err := client.UpdateCollection(ctx, existing.ID, input); err != nil {
+	updated, err := client.UpdateCollection(ctx, existing.ID, input)
+	if err != nil {
 		result.setFailure(err)
 		return result
 	}
+	result.Terms = updated.Terms
 	for si, sec := range meta.Sections {
 		sr := &result.Sections[si]
 		switch sr.Action {

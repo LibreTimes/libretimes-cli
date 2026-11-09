@@ -146,3 +146,23 @@ func printSuggestions(w io.Writer, hits []api.CategoryHit) {
 		printHit(w, h, "      ")
 	}
 }
+
+// categoryIDsWarning is the warning a file still naming `category_ids` gets:
+// ids differ between environments and cannot be read by a person, so a file
+// copied from one server names nothing on another (work-file.md
+// `KEY_DEPRECATED`). The ids are still sent; a stale one is dropped and
+// reported by the server.
+func categoryIDsWarning(ids []string) []string {
+	if len(ids) == 0 {
+		return nil
+	}
+	return []string{"`category_ids` is deprecated: name categories by key in `categories`, " +
+		"or as terms in `tags` (find keys with `lt categories search`)"}
+}
+
+// renderTerms prints a save's term report under its result line.
+func renderTerms(w io.Writer, terms []api.TermReport) {
+	for _, t := range terms {
+		fmt.Fprintf(w, "    %s\n", t.Line())
+	}
+}

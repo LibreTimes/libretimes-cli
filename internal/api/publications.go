@@ -20,21 +20,26 @@ import (
 // file never mentioned.
 //
 // The Go names are the frontmatter's; the JSON names are `/works`': a file's
-// `type` is a work's `kind`, its `tags` are `keywords`.
+// `type` is a work's `kind`.
 type PublicationInput struct {
 	// Origin is set by CreatePublication: everything lt writes is hosted.
-	Origin      string   `json:"origin,omitempty"`
-	Title       string   `json:"title,omitempty"`
-	Content     string   `json:"content,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Type        string   `json:"kind,omitempty"`
-	License     string   `json:"license,omitempty"`
-	Language    string   `json:"language,omitempty"`
-	Place       string   `json:"place,omitempty"`
-	Visibility  string   `json:"visibility,omitempty"`
-	AIUsage     string   `json:"ai_usage,omitempty"`
-	IsDraft     *bool    `json:"is_draft,omitempty"`
-	Tags        []string `json:"keywords,omitempty"`
+	Origin      string `json:"origin,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Content     string `json:"content,omitempty"`
+	Description string `json:"description,omitempty"`
+	Type        string `json:"kind,omitempty"`
+	License     string `json:"license,omitempty"`
+	Language    string `json:"language,omitempty"`
+	Place       string `json:"place,omitempty"`
+	Visibility  string `json:"visibility,omitempty"`
+	AIUsage     string `json:"ai_usage,omitempty"`
+	IsDraft     *bool  `json:"is_draft,omitempty"`
+	// Tags are terms: the server resolves each, and one that names a
+	// category becomes it; the rest are keywords (TAXONOMY-INPUT T9).
+	Tags []string `json:"tags,omitempty"`
+	// Categories are keys, the explicit form; an unknown one is a 422.
+	Categories []string `json:"categories,omitempty"`
+	// CategoryIDs is deprecated: ids differ between environments.
 	CategoryIDs []string `json:"category_ids,omitempty"`
 	// IsDraft is create-only on the API: an update changes the lifecycle
 	// through /publish and /unpublish, which UpdatePublication calls for it.
@@ -82,6 +87,8 @@ type Publication struct {
 	Title      string `json:"title"`
 	IsDraft    bool   `json:"is_draft"`
 	Visibility string `json:"visibility,omitempty"`
+	// Terms is what the save made of the tags and categories it sent.
+	Terms []TermReport `json:"terms,omitempty"`
 }
 
 // FindPublicationByImportKey looks up one of the caller's own publications by
@@ -160,9 +167,14 @@ func (c *Client) UpdatePublication(ctx context.Context, id string, in Publicatio
 		} else if visibility := firstNonEmpty(in.Visibility, out.Visibility); visibility != "" {
 			body = map[string]string{"visibility": visibility}
 		}
+		terms := out.Terms
 		out = Publication{}
 		if err := c.Post(ctx, path+verb, body, &out); err != nil {
 			return nil, err
+		}
+		// The report belongs to the PATCH that carried the terms.
+		if out.Terms == nil {
+			out.Terms = terms
 		}
 	}
 	return &out, nil
