@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -14,6 +16,8 @@ import (
 //	{"detail": ...}              plain FastAPI
 //	{"detail": [{...}, ...]}     FastAPI validation errors
 //	{"message": ...}
+//	{"error": {"detail": {"message": ...}}}   a structured refusal (STALE_SESSION)
+//	{"results": [{"index", "ok", "error"}]}  a refused edit-session batch
 //
 // Never called for a 404. See the package doc.
 func detailOf(body []byte) string {
@@ -44,6 +48,12 @@ func detailOf(body []byte) string {
 				if s, ok := e[key].(string); ok && s != "" {
 					return s
 				}
+				// A structured detail says what happened in its own message.
+				if d, ok := e[key].(map[string]any); ok {
+					if s, ok := d["message"].(string); ok && s != "" {
+						return s
+					}
+				}
 			}
 		case string:
 			if e != "" {
@@ -66,7 +76,35 @@ func detailOf(body []byte) string {
 	if s, ok := obj["message"].(string); ok && s != "" {
 		return s
 	}
+	if results, ok := obj["results"].([]any); ok {
+		return formatResults(results)
+	}
 	return ""
+}
+
+// formatResults names each item an edit session refused, and says that
+// nothing in the batch was applied -- the batch is all or none
+// (EDIT-SESSIONS-PLAN). "ambiguous" carries how often `old` occurred, which
+// is what tells the caller to quote more context.
+func formatResults(items []any) string {
+	var parts []string
+	for _, item := range items {
+		entry, ok := item.(map[string]any)
+		if !ok || entry["ok"] == true {
+			continue
+		}
+		why := toString(entry["error"])
+		if why == "ambiguous" {
+			why = "ambiguous: `old` occurs " + toString(entry["occurrences"]) + " times — quote more context"
+		} else if why == "not_found" {
+			why = "not_found: `old` is not in the current text"
+		}
+		parts = append(parts, "item "+toString(entry["index"])+": "+why)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "Nothing in this batch was applied. " + strings.Join(parts, "; ")
 }
 
 // formatValidation turns FastAPI's validation list into something actionable.
@@ -180,8 +218,12 @@ func toString(v any) string {
 		return t
 	case float64:
 		// JSON numbers land here; loc entries for list indices are numeric.
-		return strings.TrimSuffix(strings.TrimRight(
-			strings.TrimRight(jsonNumber(t), "0"), "."), ".")
+		// A whole number prints as one -- trimming zeros off "0" left nothing,
+		// which blanked every index 0.
+		if t == math.Trunc(t) && math.Abs(t) < 1e15 {
+			return strconv.FormatInt(int64(t), 10)
+		}
+		return jsonNumber(t)
 	case nil:
 		return ""
 	default:

@@ -22,8 +22,11 @@ var DivisionKinds = []string{
 
 // BookInfo is the subset of a publication read that `lt book` decides on.
 type BookInfo struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	// Kind is what Type means here (`book`); the API's `type` is the world's
+	// vocabulary, so GetPublication copies Kind over it.
+	Kind     string `json:"kind"`
 	Language string `json:"language"`
 	IsDraft  bool   `json:"is_draft"`
 	// Which expression holds the tree for each language. An authored book has
@@ -35,8 +38,11 @@ type BookInfo struct {
 // it, as they are on the site.
 func (c *Client) GetPublication(ctx context.Context, id string) (*BookInfo, error) {
 	var out BookInfo
-	if err := c.Get(ctx, "/publications/"+url.PathEscape(id), nil, &out); err != nil {
+	if err := c.Get(ctx, workPath(id), nil, &out); err != nil {
 		return nil, err
+	}
+	if out.Kind != "" {
+		out.Type = out.Kind
 	}
 	return &out, nil
 }

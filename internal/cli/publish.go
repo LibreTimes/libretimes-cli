@@ -4,15 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/The-LibreTimes/libretimes-cli/internal/api"
-	"github.com/The-LibreTimes/libretimes-cli/internal/config"
 	"github.com/The-LibreTimes/libretimes-cli/internal/frontmatter"
 )
 
@@ -74,7 +70,7 @@ func codeAndMessage(err error) (string, string) {
 // never re-glob. Only an argument that does not exist as a literal path and
 // contains a metacharacter is expanded here.
 //
-// This is what makes `lt publish content/*.md` work on Windows: neither
+// This is what makes `lt work publish content/*.md` work on Windows: neither
 // PowerShell nor cmd.exe expands `*` before handing it to the process, unlike
 // every POSIX shell (WINDOWS.md #1). Running the expansion unconditionally
 // rather than gating it on GOOS is what `gh` and `rg` do, and it costs
@@ -143,75 +139,6 @@ func resolveFiles(args []string) ([]string, error) {
 // unexported check path/filepath uses internally to decide the same thing.
 func hasGlobMeta(path string) bool {
 	return strings.ContainsAny(path, "*?[")
-}
-
-func newPublishCommand(e *env) *cobra.Command {
-	var (
-		dryRun bool
-		yes    bool
-	)
-
-	cmd := &cobra.Command{
-		Use:   "publish <file.md>...",
-		Short: "Reconcile markdown files as publications",
-		Long: "Reconcile one or more markdown files as LibreTimes publications.\n\n" +
-			"The frontmatter is the import manifest: `import_key` is what makes a " +
-			"re-run an update instead of a duplicate. Run with --dry-run first — it " +
-			"reports create/update/blocked per file and writes nothing, so the first " +
-			"real run is never a guess.",
-		Args: cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			paths, err := resolveFiles(args)
-			if err != nil {
-				return err
-			}
-
-			if !dryRun && !yes {
-				return fail(ExitNeedsConfirm,
-					"publish would write %d publication(s). Re-run with --yes to "+
-						"confirm, or --dry-run to see the plan.", len(paths))
-			}
-
-			// A token is required even for --dry-run. The plan's whole value
-			// is saying which files would be created and which updated, and
-			// that answer comes from reading your own publications. Without a
-			// token the lookup 401s and every file reports an auth failure,
-			// which reads as a broken publish rather than a missing
-			// credential — so fail once, up front, with the reason.
-			client, _, err := e.client(cmd.Context(), true, config.ProductLibreTimes)
-			if err != nil {
-				return err
-			}
-
-			results := make([]fileResult, 0, len(paths))
-			failed := false
-			profiles := newProfileResolver(client)
-			for _, path := range paths {
-				result := publishOne(cmd.Context(), client, path, dryRun, profiles)
-				results = append(results, result)
-				if result.Action == actionFailed || result.Action == actionBlocked {
-					failed = true
-				}
-				if !e.jsonOut {
-					renderResult(e, result)
-				}
-			}
-
-			if e.jsonOut {
-				if err := e.emit(results, func(io.Writer) {}); err != nil {
-					return err
-				}
-			}
-			if failed {
-				return &exitError{code: ExitAPIError, err: errQuiet{}}
-			}
-			return nil
-		},
-	}
-
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show the plan; write nothing.")
-	cmd.Flags().BoolVar(&yes, "yes", false, "Confirm the writes.")
-	return cmd
 }
 
 // errQuiet marks a failure already reported per-file, so Execute does not

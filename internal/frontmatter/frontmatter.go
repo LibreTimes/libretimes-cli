@@ -33,27 +33,86 @@ type Meta struct {
 	Contributors []Contributor `yaml:"contributors"`
 }
 
-// CourseMeta is a course manifest's frontmatter: the collection that groups one
-// lecture course's notes, for `lt course publish`.
+// CollectionMeta is a collection manifest's frontmatter, for `lt collection
+// publish`: the collection's fields, and `items`, the works it lists.
 //
-// Lectures are paths to the lecture files, relative to the manifest, in course
+// Items are paths to the works' files, relative to the manifest, in display
 // order. Each is identified by the `import_key` in its own frontmatter -- the
-// same key `lt publish` used -- so renaming a lecture's key in its file is the
-// only edit a course needs, never a second list of keys to keep in step.
-type CourseMeta struct {
-	ImportKey   string     `yaml:"import_key"`
-	Title       string     `yaml:"title"`
-	Description string     `yaml:"description"`
-	Language    string     `yaml:"language"`
-	Visibility  string     `yaml:"visibility"`
-	CategoryIDs StringList `yaml:"category_ids"`
-	Lectures    StringList `yaml:"lectures"`
+// same key `lt work publish` used -- so renaming a work's key in its file is
+// the only edit a collection needs, never a second list of keys to keep in
+// step.
+type CollectionMeta struct {
+	ImportKey      string `yaml:"import_key"`
+	CollectionType string `yaml:"collection_type"`
+	// Kind is a second spelling of CollectionType (`kind: reading_list`).
+	Kind           string     `yaml:"kind"`
+	Title          string     `yaml:"title"`
+	Description    string     `yaml:"description"`
+	Language       string     `yaml:"language"`
+	Visibility     string     `yaml:"visibility"`
+	CategoryIDs    StringList `yaml:"category_ids"`
+	Keywords       StringList `yaml:"keywords"`
+	PublicComments *bool      `yaml:"public_comments"`
+	// Items sit before the first section (the unsectioned preamble).
+	Items    []CollectionItem    `yaml:"items"`
+	Sections []CollectionSection `yaml:"sections"`
 }
 
-// BookMeta is a book manifest's frontmatter, for `lt book publish`: the
+// CollectionSection is a heading that groups items, in manifest order.
+type CollectionSection struct {
+	Title       string           `yaml:"title"`
+	Description string           `yaml:"description"`
+	Items       []CollectionItem `yaml:"items"`
+}
+
+// CollectionItem is one listed work. It is written as a bare string (a work
+// file, a work id or URL, a DOI, an arXiv id, an ISBN) or as a mapping
+// `{work: ..., note: ..., edition: <expression id>}`.
+type CollectionItem struct {
+	Work    string `yaml:"work"`
+	Note    string `yaml:"note"`
+	Edition string `yaml:"edition"`
+}
+
+func (i *CollectionItem) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var raw string
+		if err := node.Decode(&raw); err != nil {
+			return err
+		}
+		*i = CollectionItem{Work: strings.TrimSpace(raw)}
+		return nil
+	case yaml.MappingNode:
+		type plain CollectionItem
+		var p plain
+		if err := node.Decode(&p); err != nil {
+			return err
+		}
+		p.Work, p.Edition = strings.TrimSpace(p.Work), strings.TrimSpace(p.Edition)
+		p.Note = strings.TrimSpace(p.Note)
+		*i = CollectionItem(p)
+		return nil
+	default:
+		return fmt.Errorf("an item is a string or a {work, note, edition} mapping")
+	}
+}
+
+// TranslationMeta is a translation file's frontmatter, for `lt work
+// translations set` and `lt collection translations set`: which language the
+// file is, and that language's title and description. The body, for a work, is
+// the translated text.
+type TranslationMeta struct {
+	Language    string `yaml:"language"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+}
+
+// BookMeta is a book manifest's frontmatter, for `lt work publish` with
+// `type: book`: the
 // publication's fields, and `contents`, the book's table of contents as a tree.
 //
-// The manifest is authoritative for order, unlike a course's: a book is one
+// The manifest is authoritative for order, unlike a collection's: a book is one
 // text, so a chapter the manifest no longer names is a question the run asks
 // rather than an item it leaves alone.
 type BookMeta struct {

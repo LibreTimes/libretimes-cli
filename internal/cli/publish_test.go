@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,7 +34,9 @@ func newRecorder(t *testing.T, handler func(w http.ResponseWriter, r *http.Reque
 		if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 			rec.writeSum++
 			var body map[string]any
-			_ = json.NewDecoder(r.Body).Decode(&body)
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &body)
+			r.Body = io.NopCloser(bytes.NewReader(raw))
 			rec.bodies = append(rec.bodies, body)
 		}
 		if rec.handler != nil && rec.handler(w, r) {
@@ -84,7 +88,7 @@ func TestPublishFindsBeforeWriting(t *testing.T) {
 	if result.Action != actionUpdate {
 		t.Fatalf("action = %q, want %q (%s)", result.Action, actionUpdate, result.Message)
 	}
-	if want := "GET /publications/me/by-import-key | PATCH /publications/pub-7"; rec.calls() != want {
+	if want := "GET /works/me/by-import-key | PATCH /works/pub-7"; rec.calls() != want {
 		t.Errorf("calls = %q, want %q", rec.calls(), want)
 	}
 }
@@ -104,7 +108,7 @@ func TestPublishCreatesWhenTheKeyIsUnknown(t *testing.T) {
 	if result.Action != actionCreate {
 		t.Fatalf("action = %q, want %q (%s)", result.Action, actionCreate, result.Message)
 	}
-	if want := "GET /publications/me/by-import-key | POST /publications"; rec.calls() != want {
+	if want := "GET /works/me/by-import-key | POST /works"; rec.calls() != want {
 		t.Errorf("calls = %q, want %q", rec.calls(), want)
 	}
 	if got := rec.bodies[0]["import_key"]; got != "content/ru/integrals" {
@@ -178,7 +182,7 @@ func TestDryRunReportsBlockedNotUpdate(t *testing.T) {
 	}
 }
 
-// type is required by both publications-service and the BFF. Catching it here
+// type is required by the BFF and works-service. Catching it here
 // names the file and the fix instead of relaying a 422.
 func TestMissingTypeFailsBeforeAnyRequest(t *testing.T) {
 	rec := newRecorder(t, nil)

@@ -3,16 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/The-LibreTimes/libretimes-cli/internal/api"
-	"github.com/The-LibreTimes/libretimes-cli/internal/config"
 	"github.com/The-LibreTimes/libretimes-cli/internal/frontmatter"
 )
 
@@ -48,7 +44,8 @@ type chapterResult struct {
 }
 
 // bookResult is one manifest's outcome, and the shape --json emits. Shaped like
-// courseResult, so a script that reads one reads the other.
+// fileResult (path, import_key, action, publication_id, code, message), so a
+// script reading `lt work publish --json` reads a book and a lecture alike.
 type bookResult struct {
 	Path          string              `json:"path"`
 	ImportKey     string              `json:"import_key"`
@@ -76,88 +73,6 @@ func (r *bookResult) invalid(format string, args ...any) {
 	r.Action = actionFailed
 	r.Code = "validation_error"
 	r.Message = fmt.Sprintf(format, args...)
-}
-
-func newBookCommand(e *env) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "book",
-		Short: "Work with books: a text read one chapter per page",
-	}
-	cmd.AddCommand(newBookPublishCommand(e))
-	return cmd
-}
-
-func newBookPublishCommand(e *env) *cobra.Command {
-	var (
-		dryRun bool
-		yes    bool
-		prune  bool
-	)
-
-	cmd := &cobra.Command{
-		Use:   "publish <book.md>...",
-		Short: "Reconcile book manifests as books",
-		Long: "Reconcile one or more book manifests as LibreTimes books.\n\n" +
-			"The manifest's frontmatter names the book (`import_key`, `title`, " +
-			"`language`) and lists its contents as a tree under `contents`, each " +
-			"chapter's text in a file of its own. The manifest is authoritative for " +
-			"the book's order: chapters are created, updated and moved to match it. " +
-			"A chapter on the site that the manifest no longer names stops the run " +
-			"unless --prune is given, which deletes it. Run with --dry-run first.",
-		Args: cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			paths, err := resolveFiles(args)
-			if err != nil {
-				return err
-			}
-
-			if !dryRun && !yes {
-				return fail(ExitNeedsConfirm,
-					"book publish would write %d book(s). Re-run with --yes to "+
-						"confirm, or --dry-run to see the plan.", len(paths))
-			}
-
-			// Required even for --dry-run, as for publish: the plan is read off
-			// your own publications.
-			client, _, err := e.client(cmd.Context(), true, config.ProductLibreTimes)
-			if err != nil {
-				return err
-			}
-
-			results := make([]bookResult, 0, len(paths))
-			failed := false
-			profiles := newProfileResolver(client)
-			for _, path := range paths {
-				result := publishBook(cmd.Context(), client, path, bookOptions{
-					dryRun: dryRun, prune: prune, profiles: profiles,
-				})
-				results = append(results, result)
-				if result.Action == actionFailed || result.Action == actionBlocked {
-					failed = true
-				}
-				if !e.jsonOut {
-					renderBook(e, result)
-				}
-			}
-
-			if e.jsonOut {
-				if err := e.emit(results, func(io.Writer) {}); err != nil {
-					return err
-				}
-			}
-			if failed {
-				return &exitError{code: ExitAPIError, err: errQuiet{}}
-			}
-			return nil
-		},
-	}
-
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show the plan; write nothing.")
-	cmd.Flags().BoolVar(&yes, "yes", false, "Confirm the writes.")
-	cmd.Flags().BoolVar(&prune, "prune", false,
-		"Delete chapters on the site that the manifest no longer lists. On a published "+
-			"book their reading numbers are retired, never reissued.")
-	return cmd
 }
 
 func renderBook(e *env, r bookResult) {
@@ -226,7 +141,7 @@ type siteNode struct {
 
 // publishBook resolves and applies one manifest.
 //
-// Everything is read and matched before anything is written, as for a course:
+// Everything is read and matched before anything is written, as for a collection:
 // a manifest naming a missing file, a bad kind or a duplicate ref fails whole,
 // and a dry run reports exactly the plan the real run carries out.
 func publishBook(ctx context.Context, client *api.Client, path string, opts bookOptions) bookResult {
@@ -246,7 +161,7 @@ func publishBook(ctx context.Context, client *api.Client, path string, opts book
 		return result
 	}
 
-	// No default key, for the course's reason: a key derived from `book.md`
+	// No default key, for the collection's reason: a key derived from `book.md`
 	// would name the file rather than the book.
 	result.ImportKey = strings.TrimSpace(meta.ImportKey)
 	switch {
@@ -254,8 +169,7 @@ func publishBook(ctx context.Context, client *api.Client, path string, opts book
 		result.invalid("frontmatter has no `import_key`; a book needs one, e.g. <author>/<book>")
 		return result
 	case meta.Type != "" && meta.Type != api.TypeBook:
-		result.invalid("`type` is %q; a book manifest is always a book (leave `type` out), "+
-			"and a single-document text is published with `lt publish`", meta.Type)
+		result.invalid("`type` is %q; a manifest with `contents` is a book, `type: book`", meta.Type)
 		return result
 	case strings.TrimSpace(meta.Title) == "":
 		result.invalid("frontmatter has no `title`")

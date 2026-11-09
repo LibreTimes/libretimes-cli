@@ -164,9 +164,9 @@ func NewRootCommand() (*cobra.Command, *env) {
 	root.AddCommand(
 		newAuthCommand(e),
 		newWhoamiCommand(e),
-		newPublishCommand(e),
-		newCourseCommand(e),
-		newBookCommand(e),
+		newProfileCommand(e),
+		newWorkCommand(e),
+		newCollectionCommand(e),
 		newCategoriesCommand(e),
 		newVersionCommand(e),
 	)
@@ -186,7 +186,7 @@ func Execute(ctx context.Context) int {
 
 	code, message, exit := classify(err)
 
-	// errQuiet: publish already reported each file, so there is nothing to add.
+	// errQuiet: the command already reported each item, so there is nothing to add.
 	// Adding a second, vaguer line under the specific ones is worse than
 	// silence, and in --json mode the results array already carries the codes.
 	if message != "" {

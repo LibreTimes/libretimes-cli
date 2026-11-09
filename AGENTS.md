@@ -93,7 +93,7 @@ the API will not tell you either.
 Always plan first:
 
 ```sh
-lt publish ./content/*.md --dry-run --json
+lt work publish ./content/*.md --dry-run --json
 ```
 
 Each file resolves to one of four actions:
@@ -113,7 +113,7 @@ and stop.
 Then commit to it:
 
 ```sh
-lt publish ./content/*.md --yes --json
+lt work publish ./content/*.md --yes --json
 ```
 
 `--dry-run` reports exactly what `--yes` will do, including `blocked`. It never
@@ -146,46 +146,60 @@ Things to branch on:
   is `present` on a re-run. Nothing lets you add a byline entry under another
   identity.
 
-## Courses
+## Collections
 
-`lt course publish MANIFEST... --dry-run --json` plans one course per manifest
-(see README.md for the frontmatter). Each result has `action` (`create`,
-`update`, `failed`) and `collection_id`, and a `lectures` array, each with an
-`action`:
+`lt collection publish MANIFEST... --dry-run --json` plans one collection per
+manifest (see README.md for the frontmatter; `collection_type` is required).
+Each result has `action` (`create`, `update`, `failed`), `collection_id`,
+`collection_type`, and an `items` array, each with an `action`:
 
 | Action | Meaning |
 |---|---|
-| `add` | the run adds this lecture to the course |
-| `present` | already in the course; nothing is sent |
+| `add` | the run adds this work to the collection |
+| `present` | already in the collection; nothing is sent |
 | `skip` | not added; `reason` says why |
 
 | Reason | Meaning |
 |---|---|
-| `not_published` | no publication holds the lecture's `import_key` yet. Publish it, then re-run |
+| `not_published` | no work holds the item's `import_key` yet. Publish it, then re-run |
 | `draft` | a draft holds it |
-| `deleted` | a deleted publication holds it. Same rule as `blocked`: a person decides |
+| `deleted` | a deleted work holds it. Same rule as `blocked`: a person decides |
+| `not_found` | a listed work id or URL names no work visible to you |
+| `not_indexed` | a listed DOI, arXiv id or ISBN names no work the site holds. `lt` never creates one |
 
-A skip does not fail the course and does not change the exit code. Also on the
-result: `reordered` (the run restores the manifest's order) and `unlisted`
-(items in the course that no listed lecture accounts for; they are left alone).
+A manifest may also carry `sections:` and mapping items `{work, note, edition}`
+(see README.md). Each result then has `sections` (`create`, `present` or
+`update`, found by title) and, per item, `section`, `edition` and `changes`
+(`note`, `edition`, `section`; the item's `action` is `update`). An ISBN that
+matches several editions fails the manifest before any write, listing the
+candidates; `book:<key>` is refused; a pin that is not an edition of the work
+fails with `validation_error`.
+`lt collection export COLLECTION` prints the list as CSL-JSON on stdout.
+
+A skip does not fail the collection and does not change the exit code. Also on
+the result: `reordered` (the run restores the manifest's order) and `unlisted`
+(items in the collection that no listed work accounts for; they are left alone).
 
 Branch on these:
 
-- A listed file that cannot be read, or two files with one `import_key`, fails
-  the whole manifest before any request.
+- A listed file that cannot be read, two files with one `import_key`, or a
+  missing or unknown `collection_type` fails the whole manifest before any
+  request.
 - `failed` with `collection_id` set and a message starting `created, but` or
   `updated, but` means the collection was written and adding or reordering
-  lectures was not. Re-running is safe.
+  items was not. Re-running is safe.
 - `failed` with code `unsupported_server` means the API predates collection
   import keys. `lt` removed the collection it had just created, because every
   later run would otherwise create another. Do not retry until the platform is
   updated.
-- Nothing is ever removed from a course, except that rollback.
+- Nothing is ever removed from a collection, except that rollback.
 
 ## Books
 
-`lt book publish MANIFEST... --dry-run --json` plans one book per manifest (see
-README.md for the manifest and the chapter files). Each result has `action`
+A file with `type: book` given to `lt work publish` is a book manifest, and its
+result is a book result (see README.md for the manifest and the chapter files).
+`--json` returns one array in argument order, books and other works mixed; a
+book result is told apart by its `chapters`. Each result has `action`
 (`create`, `update`, `blocked`, `failed`), `publication_id`, `expression_id`,
 `published` (the run took the book out of draft), `warnings`, and a `chapters`
 array in reading order, each with `depth`, `kind`, `label`, `title`, `ref`,
@@ -222,8 +236,70 @@ Branch on these:
 - `--dry-run` reports the same chapter actions, moves included, that `--yes`
   will carry out.
 
-Publish a problem sheet with `lt publish` and `type: problems`. `lt problems`
-was removed on 2026-09-16, when LibreProblems folded into libretimes.io.
+- `--prune` on a file that is not `type: book` fails that file with
+  `validation_error` and sends nothing.
+
+## Targets
+
+`WORK` and `COLLECTION` arguments are a markdown file (looked up by its
+`import_key`, as `publish` does), an id, or a `/works/<id>` / `/collections/<id>`
+URL. A file is tried first. Two codes are specific to a file target:
+
+| Code | Meaning |
+|---|---|
+| `not_published` | none of your works (or collections) carries the file's key. Publish it first |
+| `deleted` | the work holding the key is deleted. A person decides |
+
+## Attachments
+
+`lt work attachments add WORK FILE... --dry-run --json` returns
+`{"publication_id", "files": [...]}`, each file with `name`, `action`,
+`attachment_id`, and `code`/`message` on a refusal:
+
+| Action | Meaning |
+|---|---|
+| `create` | no file by this name is attached; it will be uploaded and appended |
+| `unchanged` | a file by this name with the same bytes (sha256) is attached; nothing is sent |
+| `replace` | `--replace` was given and the bytes differ: uploaded, swapped in place (`replaces` is the old id) |
+| `blocked` | not written; see `code` |
+| `failed` | the file or a request failed; see `message` |
+
+| Code on `blocked` | Meaning |
+|---|---|
+| `attachment_differs` | a different file by this name is attached. Pass `--replace` only if a person said so: readers may already have the old one |
+| `file_face` | the name is the work's own text (its PDF/DOCX view). Change it with `lt work publish` |
+
+`lt work attachments rm WORK NAME|ID...` reports `remove` per file, `blocked`
+with `file_face`, or `failed` with `not_found`. Both commands exit 1 if any file
+is `blocked` or `failed`; the others are still written. Files the command does
+not name are never touched.
+
+## Translations
+
+`lt work translations set WORK FILE... --dry-run --json` (and `lt collection
+translations set`) returns one result per file, with `language`, `action` and,
+on an update, `changes` (`title`, `description`, `content`):
+
+| Action | Meaning |
+|---|---|
+| `create` | the language is new on the site |
+| `update` | it exists and the fields in `changes` differ |
+| `unchanged` | it matches; nothing is sent |
+| `failed` | see `code` |
+
+| Code | Meaning |
+|---|---|
+| `primary_language` | the file is in the item's original language. That is the item's own text: `lt work publish` |
+| `validation_error` | no `language` or `title`, a work translation with no body, a collection translation with one, or two files for one language |
+
+A warning that the platform stored the text "with changes" means the file will
+report `update` on every run until it matches; it does not fail the run.
+`lt ... translations rm ITEM LANG...` reports `delete`, or `failed` with
+`primary_language` or `not_found`.
+
+Publish a problem sheet with `lt work publish` and `type: problems`; attach its
+notebook with `lt work attachments add`. `lt problems` was removed on
+2026-09-16, when LibreProblems folded into libretimes.io.
 
 ## What `lt` will not do
 

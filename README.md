@@ -4,7 +4,7 @@ The [LibreTimes](https://libretimes.io) command-line client.
 
 ```sh
 lt auth login
-lt publish content/*.md --dry-run
+lt work publish content/*.md --dry-run
 ```
 
 `lt` is a pure client of the LibreTimes public REST API. It holds no internal
@@ -98,11 +98,36 @@ lt auth logout                forget cached credentials
 lt auth status                show which deployments you are signed in to
 lt auth token                 print a valid access token, for scripting
 lt whoami                     the profile the current token belongs to
-lt publish FILE...            reconcile markdown files as works
-lt course publish MANIFEST... group published lecture notes into a course
-lt book publish MANIFEST...   publish a book from a manifest and one file per chapter
+lt profile image set FILE     your profile picture (--focus x,y; show, rm)
 lt version
+
+lt work publish FILE...                   reconcile markdown files as works (a book too)
+lt work ls                                your works, published and draft
+lt work show WORK                         one work: state, languages, files
+lt work edit WORK [CHANGES.json]          change part of a work by exact replacement, one version
+lt work notes WORK                        notes, passage comments, suggested edits and errata on it
+lt work suggest WORK --old … --new …      suggest an edit to a work you can read
+lt work review WORK                       the open suggestions and errata on your work, with changes
+lt work accept WORK ID... -m …            apply suggestions as one version (errata: mark fixed)
+lt work reject WORK ID...                 turn them down
+lt work attachments add WORK FILE...      attach files to a work
+lt work attachments ls WORK
+lt work attachments rm WORK NAME|ID...
+lt work translations set WORK FILE...     add or update a work's translations
+lt work translations ls WORK
+lt work translations rm WORK LANG...
+
+lt collection publish MANIFEST...         reconcile a course or a curated list
+lt collection ls
+lt collection show COLLECTION
+lt collection export COLLECTION           the list as CSL-JSON (-o FILE, --lang)
+lt collection translations set|ls|rm      as for a work; title and description only
 ```
+
+Commands are nouns first, then a verb, the way `gh pr create` is. A book is a
+`type` of work and a course is a `collection_type` of collection, not commands
+of their own. `WORK` and `COLLECTION` are the markdown file you published from
+(found by its `import_key`), an id, or a `/works/<id>` / `/collections/<id>` URL.
 
 Global flags: `--env {prod,dev}`, `--api-url`, `--auth-url`, `--realm`,
 `--client-id`, `--json`, `--quiet`.
@@ -161,8 +186,49 @@ The timeouts are sized for a laptop rather than a datacenter, but a bad link is
 a bad link. `LT_TIMEOUT_SECONDS` scales all of them together:
 
 ```sh
-LT_TIMEOUT_SECONDS=300 lt publish ./content/*.md --yes
+LT_TIMEOUT_SECONDS=300 lt work publish ./content/*.md --yes
 ```
+
+### Editing part of a work
+
+`lt work edit` changes part of a work -- draft or published -- without a local
+copy of it. The changes are exact replacements; each `old` must occur exactly
+once, and the batch is all or none:
+
+```sh
+cat > fix.json <<'JSON'
+[{"language": "ru", "field": "content", "old": "teh", "new": "the"}]
+JSON
+lt work edit notes/limits.md fix.json --dry-run            # the diff; nothing kept
+lt work edit notes/limits.md fix.json -m "Typo" --yes      # one new version
+```
+
+A book is edited by division: `{"division_id": "...", "field": "body", ...}`,
+and `{"changes": [...], "structure": [...]}` also creates, moves or deletes its
+divisions. `--keep-open` applies the changes and leaves the session open;
+`--session ID` continues one, and with no file commits it. A commit is refused
+if someone changed the same text meanwhile -- run it again without `--session`
+to apply your changes to the current text.
+
+### Suggesting and reviewing edits
+
+`lt work suggest` proposes a fix to a work you can read but not edit; its
+authors see it beside the passage and accept or reject it. `--old` is the exact
+markdown, occurring once -- quote a little more around it if it repeats. Nothing
+is written into the text until an author accepts it:
+
+```sh
+lt work suggest https://libretimes.io/works/<id> --old "teh word" --new "the word" \
+  --note "Typo." --yes
+```
+
+On your own work, `lt work review` lists what is open, each suggestion with its
+change as a diff, and `lt work accept` applies the ones you name as **one** new
+version (`-m` is its summary; by default it credits the suggesters). A
+suggestion whose passage has changed since comes back `outdated` and the rest
+still apply. `lt work reject` records the decision; either way the writer is
+told. A book's passage needs `--division ID --page N` (the reading page it is
+on). `lt work notes` lists everything annotated on a work, as you may read it.
 
 ## Publishing
 
@@ -215,7 +281,7 @@ Four things worth knowing before a first publish:
 `--dry-run` reports `create` / `update` / `blocked` per file and writes
 nothing, so the first real run is never a guess. Writes need `--yes`.
 
-`lt publish content/*.md` works the same way on every platform: `lt` expands
+`lt work publish content/*.md` works the same way on every platform: `lt` expands
 `*`, `?` and `[...]` itself rather than relying on the shell, since neither
 PowerShell nor `cmd.exe` does that before handing the process its arguments. A
 literal path always wins — a real file named `[draft].md` still resolves —
@@ -275,60 +341,126 @@ contributors:
 `--dry-run` shows the byline plan under each file: `add` for a name the run
 will add, `present` for one already there.
 
-### Courses
+### Collections
 
-A course is the collection that holds one lecture course's notes, in order. It
-is described by a manifest, usually the `README.md` in the course's folder:
+A collection is an ordered list of works: a course (one lecture course's notes
+and sheets, in order), a plain curated `collection`, a `recommendation` list, or
+a `reading_list` (a bibliography: sections, a note under each reference, a
+pinned edition). It is described by a manifest, usually the `README.md` in its
+folder:
 
 ```yaml
 ---
-import_key: ivanov/analysis-1          # required; identifies the course on re-runs
+import_key: ivanov/analysis-1          # required; identifies the collection on re-runs
+collection_type: course                 # required: course, collection, recommendation or reading_list (`kind:` also works)
 title: Analysis 1 (autumn 2026)         # required
 language: en                            # required; the language of title and description
 description: Notes from the lectures.   # optional
 visibility: public                      # public, authenticated, connections or owner
 category_ids: [019f8f79-4915-7fa3-aa13-4604b0de40b5]   # optional
-lectures:                               # lecture files, relative to the manifest, in order
+items:                                  # work files, relative to the manifest, in order
   - lecture-01.md
   - lecture-02.md
+  - sheet-01.md
 ---
 Anything below the frontmatter is yours; it is never sent.
 ```
 
 ```sh
-lt publish ivanov/analysis-1/lecture-*.md --yes
-lt course publish ivanov/analysis-1/README.md --dry-run
-lt course publish ivanov/analysis-1/README.md --yes
+lt work publish ivanov/analysis-1/*.md --yes
+lt collection publish ivanov/analysis-1/README.md --dry-run
+lt collection publish ivanov/analysis-1/README.md --yes
 ```
 
-- **Lectures are found by their own `import_key`.** `lt` reads each listed
-  file's frontmatter and finds the publication `lt publish` made from it. Change
-  a lecture's key in its file and the course follows.
-- **Publish lectures first; the course picks them up.** A listed lecture that is
+- **Works are found by their own `import_key`.** `lt` reads each listed file's
+  frontmatter and finds the work `lt work publish` made from it. Change a work's
+  key in its file and the collection follows.
+- **Publish works first; the collection picks them up.** A listed work that is
   not on the site yet is skipped (`not_published`), and so is one that is a
-  draft or was deleted. Run `lt course publish` again after the next lecture
+  draft or was deleted. Run `lt collection publish` again after the next work
   and it is added.
-- **The manifest decides the order.** Missing lectures are appended and the
-  course is put back in the manifest's order if it has drifted.
-- **Only additive.** Nothing is removed from a course. Items the manifest does
-  not name stay where they are and are counted as `unlisted`.
-- **A course is a collection, not a publication.** Its visibility is one of
-  `public`, `authenticated`, `connections`, `owner`; there is no `private` or
-  `by_link`. The course has no byline: credit the lecturer on each lecture with
-  `contributors`.
-- **A missing lecture file fails the manifest before anything is written.**
+- **The manifest decides the order.** Missing works are appended and the
+  collection is put back in the manifest's order if it has drifted.
+- **Only additive.** Nothing is removed from a collection. Items the manifest
+  does not name stay where they are and are counted as `unlisted`.
+- **A collection is not a work.** Its visibility is one of `public`,
+  `authenticated`, `connections`, `owner`; there is no `private` or `by_link`.
+  It has no byline: credit people on each work with `contributors`.
+- **A missing file fails the manifest before anything is written.**
 
-`--dry-run` reports `create` or `update` for the course and `add`, `present` or
-`skip` for each lecture.
+`--dry-run` reports `create` or `update` for the collection and `add`,
+`present` or `skip` for each work.
+
+#### Sections, notes and editions
+
+A reading list groups its items under headings. `items:` at the top are the
+unsectioned preamble that reads first; each entry of `sections:` has a `title`,
+an optional `description` and its own `items:`. An item is a string or a
+mapping:
+
+```yaml
+---
+import_key: ivanov/topology-reading
+kind: reading_list
+title: Topology reading list
+language: en
+keywords: [topology, algebra]           # free terms that name no category
+public_comments: false                  # whether the discussion is open
+items:
+  - 10.1007/978-1-4612-0647-7           # a DOI
+sections:
+  - title: Basics
+    description: Start here.
+    items:
+      - lecture-01.md                                   # a work file you published
+      - https://libretimes.io/works/019f8f79-4915-7fa3-aa13-4604b0de40b5
+      - work: 978-0-387-95295-4                         # an ISBN: also pins that edition
+        note: Chapters 1 to 3 are enough.
+  - title: Further
+    items:
+      - work: 019f8f79-4915-7fa3-aa13-4604b0de40b6
+        edition: 019f8f79-4915-7fa3-aa13-4604b0de40b7   # pin an edition (an expression id)
+---
+```
+
+- **An item names a work the site already holds.** A work file (by its
+  `import_key`), a work id, a `/works/<id>` URL (with or without a language
+  prefix), a DOI, an arXiv id or URL, or an ISBN. A DOI, arXiv id or ISBN
+  matches only a work that is already indexed (`skip: not_indexed` otherwise):
+  `lt` never creates a work. An ISBN also pins the edition that carries it; two
+  matches fail the manifest and list the candidates. `book:<key>` (a catalogue
+  import key) is refused, as the public API cannot read it: use the book's URL
+  or ISBN.
+- **`note`** (at most 2000 characters) shows under the reference. **`edition`**
+  pins one edition of the work, by expression id; a pin that is not an edition
+  of the work is refused.
+- **Re-runs are idempotent.** Sections are found by title and created when
+  missing, so keep titles unique; notes and pins are set where the manifest
+  states them; a work is moved to its section and the section-aware order is put
+  back. Nothing is removed: a section or work the manifest does not name stays.
+
+#### Export and BibTeX
+
+```sh
+lt collection export ivanov/topology-reading/README.md -o reading.json
+lt collection export 019f8f79-... --lang ru
+lt collection export 019f8f79-... | pandoc -f csljson -t biblatex > reading.bib   # or -t bibtex
+```
+
+The export is a CSL-JSON array in list order (at most 1000 entries); each entry
+carries the owner's `note` and its section as `x-section`. Every citation tool
+reads CSL-JSON, and pandoc converts it to BibLaTeX or BibTeX
+(`-t biblatex`, `-t bibtex`, both checked; pandoc has no RIS writer).
 
 ### Books
 
 A book is one text read one chapter per page -- a textbook, a monograph, lecture
 notes rewritten as a continuous text. On the site it is a publication of type
-`book` whose text is a tree of chapters rather than one body; `lt book publish`
-writes that tree from a directory of markdown files. (A course is different: it
-groups lectures that are each a publication of their own. A book's chapters are
-not separately published and share one byline and one citation.)
+`book` whose text is a tree of chapters rather than one body; `lt work publish`
+writes that tree from a directory of markdown files when the manifest says
+`type: book`. (A course is different: it is a collection of works that are each
+published on their own. A book's chapters are not separately published and share
+one byline and one citation.)
 
 ```
 my-book/
@@ -341,11 +473,12 @@ my-book/
 ```yaml
 ---
 import_key: ivanov/analysis-book     # required; identifies the book on re-runs
+type: book                           # required; this is what makes the file a book manifest
 title: Analysis                      # required
 language: en                         # required; which of the book's texts to write
 description: A first course.         # optional, as are license, visibility, ai_usage,
 license: cc_by_sa                    #   is_draft, tags, category_ids, contributors --
-visibility: public                   #   the same keys `lt publish` takes
+visibility: public                   #   the same keys any work takes
 contents:
   - file: preface.md
     kind: front_matter
@@ -369,8 +502,8 @@ per-chapter keys (`kind`, `label`, `title`, `ref`, `first_line`). Write each key
 in the manifest or in the file, not both differently.
 
 ```sh
-lt book publish my-book/book.md --dry-run
-lt book publish my-book/book.md --yes
+lt work publish my-book/book.md --dry-run
+lt work publish my-book/book.md --yes
 ```
 
 - **`kind`** is one of `volume`, `book`, `part`, `chapter`, `section`,
@@ -388,7 +521,8 @@ lt book publish my-book/book.md --yes
 - **A chapter on the site that the manifest does not list stops the run**, with
   the list, before anything is written. Add it back, or pass `--prune` to delete
   it. On a published book a deleted chapter's address (`/read/<n>`) is retired,
-  never given to another chapter.
+  never given to another chapter. `--prune` on a file that is not a book is
+  refused.
 - **The book is published last**, once its chapters have text: a new book is
   created as a draft and taken out of draft at the end of the run, unless the
   manifest says `is_draft: true`. On a re-run the draft state changes only if
@@ -409,18 +543,74 @@ lt book publish my-book/book.md --yes
   starts as a copy of the original's contents, and `lt` then fills it). A
   language the book has no text in fails with `no_expression` and writes
   nothing. `lt` never writes one language's manifest into another language's
-  text, and it does not create translations.
+  text, and it does not create a book's translations: a translated book is a
+  second contents tree, added on the site.
 
 `--dry-run` reports `create` or `update` for the book, and for each chapter
 `create`, `update` (with the fields that change, `position` included) or
 `unchanged`, plus any `unlisted` chapters. It walks the same placements as the
 real run, so the moves it reports are the moves `--yes` makes.
 
+### Attachments
+
+Files that go with a work but are not its text: a notebook of checks beside a
+problem sheet, a dataset beside a paper. Publish the work first (a draft is
+fine), then attach:
+
+```sh
+lt work attachments add sheets/03-green.md sheets/03-green.ipynb --dry-run
+lt work attachments add sheets/03-green.md sheets/03-green.ipynb --yes
+lt work attachments ls sheets/03-green.md
+lt work attachments rm sheets/03-green.md 03-green.ipynb --yes
+```
+
+- **A file is known by its name.** Adding a name the work already has is
+  `unchanged` when the bytes are the same (compared by content, not size or
+  date) and `blocked` when they differ. `--replace` swaps it, in its place in
+  the list. Overwriting a file readers may already have is a decision, not a
+  side effect of a re-run.
+- **Files already attached stay.** `add` appends; `rm` removes only what it
+  names, by file name or attachment id.
+- **A work whose text is a file** (a PDF or DOCX view) keeps that file among its
+  attachments. `ls` marks it; `add` and `rm` refuse to touch it — changing a
+  work's text is `lt work publish`.
+- The bytes go straight to the storage host through the signed upload URL the
+  API hands out. Your token is never sent there.
+
+### Translations
+
+A translation is another language of the same work — `?lang=en` on the same
+page — not a second work. It is a file of its own: `language`, `title` and
+`description` in the frontmatter, the translated text below.
+
+```yaml
+---
+language: en
+title: Vector calculus. Sheet 3. Green's theorem
+description: A contour integral as a double integral.
+---
+The translated text, with every directive, number and anchor as in the original.
+```
+
+```sh
+lt work translations set sheets/03-green.md sheets/03-green.en.md --dry-run
+lt work translations set sheets/03-green.md sheets/03-green.en.md --yes
+lt work translations ls sheets/03-green.md
+lt collection translations set sheets/collection.md sheets/collection.en.md --yes
+```
+
+- **Re-running is safe.** An unchanged file is `unchanged` and writes nothing;
+  a changed one is `update`, naming the fields that differ.
+- **The original language is refused.** That text is the work itself; change it
+  with `lt work publish`.
+- A collection translation is frontmatter only: a collection has no body.
+
 ### Problem sheets
 
-A problem sheet is a publication of `type: problems`, published with
-`lt publish` like any other. `lt problems` was removed on 2026-09-16, when
-problem sheets became ordinary publications on libretimes.io.
+A problem sheet is a work of `type: problems`, published with `lt work publish`
+like any other; its solutions are `:::solution` blocks inside each problem, and
+a notebook of checks, if it has one, is an attachment. `lt problems` was removed
+on 2026-09-16, when problem sheets became ordinary works on libretimes.io.
 
 ## Pointing lt at a dev stack
 
