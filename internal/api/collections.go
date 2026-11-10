@@ -202,6 +202,18 @@ func (c *Client) UpdateCollectionItem(ctx context.Context, id, workID string, fi
 	return c.Patch(ctx, "/collections/"+url.PathEscape(id)+"/items/work/"+url.PathEscape(workID), fields, nil)
 }
 
+// RemoveCollectionItem takes one work out of a collection. The work itself is
+// untouched.
+func (c *Client) RemoveCollectionItem(ctx context.Context, id, workID string) error {
+	return c.do(ctx, http.MethodDelete, "/collections/"+url.PathEscape(id)+"/items/work/"+url.PathEscape(workID), nil, nil, nil)
+}
+
+// DeleteSection removes a heading; the API moves its items to the
+// unsectioned preamble.
+func (c *Client) DeleteSection(ctx context.Context, id, sectionID string) error {
+	return c.do(ctx, http.MethodDelete, "/collections/"+url.PathEscape(id)+"/sections/"+url.PathEscape(sectionID), nil, nil, nil)
+}
+
 // ReorderCollection sets each work's position to its index in the list.
 // Items absent from the list keep their positions.
 func (c *Client) ReorderCollection(ctx context.Context, id string, workIDs []string) error {

@@ -38,6 +38,7 @@ type collectionAPI struct {
 	works        map[string]string         // GET /works/{id}
 	resolve      map[string]string         // POST /works/resolve by query
 	expressions  map[string]string         // GET /works/{id}/expressions
+	byKey        map[string]string         // GET /works/by-key by key
 	orderBody    map[string]any            // the last PUT .../items/order body
 	addedItems   []map[string]any          // full POST .../items entries
 	itemPatches  map[string]map[string]any // work id -> PATCH body
@@ -72,8 +73,15 @@ func (f *collectionAPI) handler(t *testing.T) func(w http.ResponseWriter, r *htt
 				page["items"] = append(page["items"].([]map[string]any), row)
 			}
 			json.NewEncoder(w).Encode(page)
-		case r.Method == http.MethodGet && path == "/collections/coll-1":
+		case r.Method == http.MethodGet && (path == "/collections/coll-1" || path == "/collections/"+collUUID):
 			json.NewEncoder(w).Encode(map[string]any{"id": "coll-1", "sections": f.sections})
+		case r.Method == http.MethodGet && path == "/works/by-key":
+			body, ok := f.byKey[r.URL.Query().Get("key")]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return true
+			}
+			w.Write([]byte(body))
 		case r.Method == http.MethodGet && strings.HasPrefix(path, "/works/") && strings.HasSuffix(path, "/expressions"):
 			id := strings.TrimSuffix(strings.TrimPrefix(path, "/works/"), "/expressions")
 			body, ok := f.expressions[id]
@@ -454,12 +462,46 @@ func TestCollectionResolvesItemsRelativeToTheManifest(t *testing.T) {
 func TestCollectionTypeComesFromTheManifest(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "a.md", lecture("sh/an/lecture-01"))
-	path := writeFile(t, dir, "README.md",
-		"---\nimport_key: sh/an\ntitle: T\nlanguage: ru\ncollection_type: collection\nitems: [a.md]\n---\n")
+	path := writeFile(t, dir, "list.yaml",
+		"import_key: sh/an\ntitle: T\nlanguage: ru\ncollection_type: collection\nitems: [a.md]\n")
 
 	f := &collectionAPI{pubs: map[string]string{"sh/an/lecture-01": `{"id":"p1"}`}}
 	result, _ := runCollection(t, f, path, false)
 	if result.Action != actionCreate || f.created["collection_type"] != "collection" {
 		t.Fatalf("result = %+v, create body = %v", result, f.created)
+	}
+}
+
+func TestOnlyACourseMayBeAReadme(t *testing.T) {
+	dir := t.TempDir()
+	path := writeFile(t, dir, "README.md",
+		"---\nimport_key: sh/rl\ntitle: T\nlanguage: ru\nkind: reading_list\n---\nNotes.\n")
+	result, rec := runCollection(t, &collectionAPI{}, path, false)
+	if result.Action != actionFailed || !strings.Contains(result.Message, ".yaml or .json") || len(rec.mu) != 0 {
+		t.Fatalf("result = %+v calls = %s", result, rec.calls())
+	}
+}
+
+func TestJSONManifestIsTheSameListAsYAML(t *testing.T) {
+	dir := t.TempDir()
+	yamlPath := writeFile(t, dir, "list.yaml", "import_key: sh/an\ntitle: T\nlanguage: en\nkind: reading_list\n"+
+		"sections:\n  - title: Basics\n    items:\n      - work: "+work1+"\n        note: First\n")
+	jsonPath := writeFile(t, dir, "list.json", `{"import_key": "sh/an", "title": "T", "language": "en",
+	"kind": "reading_list", "sections": [{"title": "Basics", "items": [{"work": "`+work1+`", "note": "First"}]}]}`)
+	for _, path := range []string{yamlPath, jsonPath} {
+		f := &collectionAPI{works: map[string]string{work1: `{"id":"` + work1 + `","title":"One"}`}}
+		result, _ := runCollection(t, f, path, false)
+		if result.Action != actionCreate || len(f.addedItems) != 1 || f.addedItems[0]["note"] != "First" ||
+			len(f.sectionNew) != 1 {
+			t.Fatalf("%s: result = %+v added = %v", path, result, f.addedItems)
+		}
+	}
+}
+
+func TestPlainManifestRefusesAnUnknownKey(t *testing.T) {
+	path := writeFile(t, t.TempDir(), "list.yaml", "import_key: k\ntitle: T\nlanguage: en\nkind: collection\nsectons: []\n")
+	result, rec := runCollection(t, &collectionAPI{}, path, false)
+	if result.Action != actionFailed || !strings.Contains(result.Message, "sectons") || len(rec.mu) != 0 {
+		t.Fatalf("result = %+v", result)
 	}
 }

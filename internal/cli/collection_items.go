@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/The-LibreTimes/libretimes-cli/internal/api"
@@ -22,6 +23,7 @@ const (
 	refDOI   = "doi"   // a DOI, or a doi.org URL
 	refArxiv = "arxiv" // an arXiv id or URL
 	refISBN  = "isbn"  // an ISBN-10 or ISBN-13
+	refKey   = "key"   // a library catalogue key, `book:<key>`
 )
 
 var (
@@ -29,6 +31,11 @@ var (
 	arxivNewPattern = regexp.MustCompile(`(?i)^\d{4}\.\d{4,5}(?:v\d+)?$`)
 	arxivPrefix     = regexp.MustCompile(`(?i)^(?:arxiv:|https?://(?:www\.)?arxiv\.org/(?:abs|pdf)/)(\S+?)(?:\.pdf)?$`)
 	isbnPrefix      = regexp.MustCompile(`(?i)^isbn(?:-1[03])?:?\s*`)
+	// catalogueKey is the shape every seam's import key has: `book:<key>`,
+	// `mccme-free-books:<key>`. Tried after every other form.
+	catalogueKey = regexp.MustCompile(`^[a-z][a-z0-9-]*:\S+$`)
+	// langYear names an edition by its language and year: `ru-1976`.
+	langYear = regexp.MustCompile(`^([a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*)-(\d{4})$`)
 )
 
 type itemRef struct {
@@ -56,10 +63,6 @@ func classifyItem(dir, spec string) (itemRef, error) {
 	if isFile(path) {
 		return itemRef{refFile, path}, nil
 	}
-	if strings.HasPrefix(strings.ToLower(spec), "book:") {
-		return itemRef{}, fmt.Errorf("item %s: a catalogue import key (book:<key>) cannot be resolved: "+
-			"the public API has no read for it. Name the book by its work URL, work id or ISBN", spec)
-	}
 	if id, ok := idFromArg(spec, "works"); ok {
 		return itemRef{refID, id}, nil
 	}
@@ -72,8 +75,74 @@ func classifyItem(dir, spec string) (itemRef, error) {
 	if isbn, ok := normalizeISBN(spec); ok {
 		return itemRef{refISBN, isbn}, nil
 	}
+	if lower := strings.ToLower(spec); catalogueKey.MatchString(spec) &&
+		!strings.HasPrefix(lower, "http:") && !strings.HasPrefix(lower, "https:") {
+		return itemRef{refKey, spec}, nil
+	}
 	return itemRef{}, fmt.Errorf("item %s: not a work file that exists, a work id or URL, a DOI, "+
-		"an arXiv id or an ISBN", spec)
+		"an arXiv id, an ISBN or a catalogue key (book:<key>)", spec)
+}
+
+// checkEdition accepts the three ways to name an edition: its expression id,
+// its ISBN, or `<language>-<year>`. Only the last two mean the same on every
+// deployment.
+func checkEdition(spec string) (string, error) {
+	switch {
+	case uuidPattern.MatchString(spec):
+		return strings.ToLower(spec), nil
+	case langYear.MatchString(spec):
+		return spec, nil
+	}
+	if isbn, ok := normalizeISBN(spec); ok {
+		return isbn, nil
+	}
+	return "", fmt.Errorf("edition %q is not an expression id, an ISBN or <language>-<year> (ru-1976)", spec)
+}
+
+// carries says whether an edition, or one of its tomes, has this ISBN-13.
+func carries(e api.Expression, isbn string) bool {
+	if e.ISBN13 == isbn {
+		return true
+	}
+	return slices.ContainsFunc(e.Volumes, func(v api.Volume) bool { return v.ISBN13 == isbn })
+}
+
+// resolveEdition turns an ISBN or `<language>-<year>` edition into the id of
+// the one edition of the work it names. None, or several, is an error that
+// lists the work's editions.
+func resolveEdition(ctx context.Context, client *api.Client, workID, spec string) (string, error) {
+	if uuidPattern.MatchString(spec) {
+		return strings.ToLower(spec), nil
+	}
+	exprs, err := client.ListExpressions(ctx, workID)
+	if err != nil {
+		return "", err
+	}
+	var hits []api.Expression
+	for _, e := range exprs {
+		if m := langYear.FindStringSubmatch(spec); m != nil {
+			if e.Language == m[1] && strconv.Itoa(e.Year) == m[2] {
+				hits = append(hits, e)
+			}
+		} else if carries(e, spec) {
+			hits = append(hits, e)
+		}
+	}
+	if len(hits) == 1 {
+		return strings.ToLower(hits[0].ID), nil
+	}
+	var have []string
+	for _, e := range exprs {
+		have = append(have, fmt.Sprintf("%s-%d %q (%s)", e.Language, e.Year, e.Label, e.ID))
+	}
+	what := "matches no edition"
+	if len(hits) > 1 {
+		what = fmt.Sprintf("matches %d editions", len(hits))
+	}
+	if len(have) == 0 {
+		have = []string{"none"}
+	}
+	return "", fmt.Errorf("edition %s %s of the work; its editions: %s", spec, what, strings.Join(have, "; "))
 }
 
 // normalizeISBN returns the ISBN-13 for a valid ISBN-10 or ISBN-13.
@@ -152,11 +221,11 @@ func resolveItems(ctx context.Context, client *api.Client, manifest string, entr
 		refs[i] = ref
 		results[i] = itemResult{Path: spec.Work, note: spec.Note, pin: spec.Edition, section: entry.section}
 		if spec.Edition != "" {
-			if !uuidPattern.MatchString(spec.Edition) {
-				return nil, fmt.Errorf("item %s: edition %q is not an expression id", spec.Work, spec.Edition)
+			pin, err := checkEdition(spec.Edition)
+			if err != nil {
+				return nil, fmt.Errorf("item %s: %w", spec.Work, err)
 			}
-			spec.Edition = strings.ToLower(spec.Edition)
-			results[i].pin = spec.Edition
+			results[i].pin = pin
 		}
 		if len(spec.Note) > 2000 {
 			return nil, fmt.Errorf("item %s: a note is at most 2000 characters", spec.Work)
@@ -196,6 +265,11 @@ func resolveItems(ctx context.Context, client *api.Client, manifest string, entr
 			err = resolveByIdentifier(ctx, client, r)
 		case refISBN:
 			err = resolveByISBN(ctx, client, r, refs[i].value)
+		case refKey:
+			err = resolveByKey(ctx, client, r, refs[i].value)
+		}
+		if err == nil && r.pin != "" && r.Action != itemSkip && r.PublicationID != "" {
+			r.pin, err = resolveEdition(ctx, client, r.PublicationID, r.pin)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("item %s: %w", r.Path, err)
@@ -272,6 +346,21 @@ func resolveByIdentifier(ctx context.Context, client *api.Client, r *itemResult)
 	return nil
 }
 
+// resolveByKey finds a library book by its catalogue key. A key no public
+// work holds is skipped, like an identifier the site does not hold.
+func resolveByKey(ctx context.Context, client *api.Client, r *itemResult, key string) error {
+	ref, err := client.FindWorkByKey(ctx, key)
+	if err != nil {
+		return err
+	}
+	if ref == nil {
+		r.Action, r.Reason = itemSkip, skipNotIndexed
+		return nil
+	}
+	r.PublicationID, r.Title = strings.ToLower(ref.ID), ref.Title
+	return nil
+}
+
 // resolveByISBN finds the work whose edition carries this ISBN, and pins that
 // edition unless the manifest names one.
 func resolveByISBN(ctx context.Context, client *api.Client, r *itemResult, isbn string) error {
@@ -303,7 +392,7 @@ func resolveByISBN(ctx context.Context, client *api.Client, r *itemResult, isbn 
 			return err
 		}
 		for _, e := range exprs {
-			if e.ISBN13 == isbn {
+			if carries(e, isbn) {
 				hits = append(hits, hit{card, strings.ToLower(e.ID)})
 			}
 		}

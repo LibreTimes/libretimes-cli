@@ -15,8 +15,8 @@ const (
 )
 
 func readingList(items string) string {
-	return "---\nimport_key: sh/rl\ntitle: Reading\nlanguage: en\nkind: reading_list\nkeywords: [topology, algebra]\npublic_comments: false\n" +
-		items + "---\n"
+	return "import_key: sh/rl\ntitle: Reading\nlanguage: en\nkind: reading_list\nkeywords: [topology, algebra]\npublic_comments: false\n" +
+		items
 }
 
 const twoSectionList = `items:
@@ -42,7 +42,7 @@ func sectionsAPI() *collectionAPI {
 
 func TestReadingListCreatesSectionsNotesAndPins(t *testing.T) {
 	f := sectionsAPI()
-	path := writeFile(t, t.TempDir(), "README.md", readingList(twoSectionList))
+	path := writeFile(t, t.TempDir(), "list.yaml", readingList(twoSectionList))
 	result, rec := runCollection(t, f, path, false)
 
 	if result.Action != actionCreate || result.CollectionType != "reading_list" {
@@ -89,7 +89,7 @@ func TestReadingListRerunChangesNothing(t *testing.T) {
 		work2: {"section_id": "s1", "note": "Read chapters 1-3", "expression_id": exprA},
 		work3: {"section_id": "s2"},
 	}
-	path := writeFile(t, t.TempDir(), "README.md", readingList(twoSectionList))
+	path := writeFile(t, t.TempDir(), "list.yaml", readingList(twoSectionList))
 	result, rec := runCollection(t, f, path, false)
 
 	if result.Action != actionUpdate || result.Reordered {
@@ -115,7 +115,7 @@ func TestReadingListRerunAddsSectionSetsNoteAndPinAndMoves(t *testing.T) {
 	f.sections = []map[string]any{{"id": "s1", "title": "Basics", "position": 0}}
 	// work2 sits in the preamble with no note or pin; work3 is not held yet.
 	f.items = []string{work1, work2}
-	path := writeFile(t, t.TempDir(), "README.md", readingList(twoSectionList))
+	path := writeFile(t, t.TempDir(), "list.yaml", readingList(twoSectionList))
 	result, _ := runCollection(t, f, path, false)
 
 	if result.Action != actionUpdate || !result.Reordered {
@@ -158,7 +158,7 @@ func TestReadingListDryRunWritesNothing(t *testing.T) {
 	f := sectionsAPI()
 	f.coll = `{"id":"coll-1"}`
 	f.items = []string{work1}
-	path := writeFile(t, t.TempDir(), "README.md", readingList(twoSectionList))
+	path := writeFile(t, t.TempDir(), "list.yaml", readingList(twoSectionList))
 	result, rec := runCollection(t, f, path, true)
 	if rec.writeSum != 0 || strings.Contains(rec.calls(), "PUT") {
 		t.Errorf("--dry-run wrote: %s", rec.calls())
@@ -174,7 +174,7 @@ func TestSectionTitlesMustBeUniqueAndPresent(t *testing.T) {
 		"empty": "sections:\n  - description: x\n",
 	} {
 		t.Run(name, func(t *testing.T) {
-			path := writeFile(t, t.TempDir(), "README.md", readingList(items))
+			path := writeFile(t, t.TempDir(), "list.yaml", readingList(items))
 			result, rec := runCollection(t, sectionsAPI(), path, false)
 			if result.Code != "validation_error" || len(rec.mu) != 0 {
 				t.Errorf("result = %+v calls = %s", result, rec.calls())
@@ -202,7 +202,9 @@ func TestItemForms(t *testing.T) {
 		{"https://arxiv.org/abs/2101.00001", refArxiv, "", ""},
 		{"978-0-306-40615-7", refISBN, "9780306406157", ""},
 		{"ISBN 0-306-40615-2", refISBN, "9780306406157", ""},
-		{"book:ia/foo", "", "", "no read"},
+		{"book:fulton-intersection-theory", refKey, "book:fulton-intersection-theory", ""},
+		{"mccme-free-books:gelfand", refKey, "", ""},
+		{"https://example.org/not-a-work", "", "", "not a work file"},
 		{"missing.md", "", "", "missing.md"},
 		{"978-0-306-40615-8", "", "", "not a work file"}, // bad check digit
 	}
@@ -231,7 +233,7 @@ func TestIdentifierItemsUseHeldWorksOnly(t *testing.T) {
 		// Resolved at Crossref but not held: lt must not mint it.
 		"10.1000/new": `{"kind":"doi","resolved":{"title":"X"}}`,
 	}
-	path := writeFile(t, t.TempDir(), "README.md", listWith("  - 10.1000/held\n  - 10.1000/new\n"))
+	path := writeFile(t, t.TempDir(), "list.yaml", listWith("  - 10.1000/held\n  - 10.1000/new\n"))
 	result, rec := runCollection(t, f, path, false)
 	if want := []string{"add:", "skip:not_indexed"}; !slices.Equal(actions(result), want) {
 		t.Errorf("items = %v, want %v", actions(result), want)
@@ -252,7 +254,7 @@ func TestISBNPinsTheMatchingEdition(t *testing.T) {
 		work1: `[{"id":"` + exprA + `","isbn13":"9780306406157"}]`,
 		work2: `[{"id":"` + exprB + `","isbn13":"9781234567897"}]`,
 	}
-	path := writeFile(t, t.TempDir(), "README.md", listWith("  - 0-306-40615-2\n"))
+	path := writeFile(t, t.TempDir(), "list.yaml", listWith("  - 0-306-40615-2\n"))
 	result, _ := runCollection(t, f, path, false)
 	if result.Action != actionCreate || len(f.addedItems) != 1 ||
 		f.addedItems[0]["entity_id"] != work1 || f.addedItems[0]["expression_id"] != exprA {
@@ -268,7 +270,7 @@ func TestISBNWithSeveralMatchesIsRefusedWithCandidates(t *testing.T) {
 		work1: `[{"id":"` + exprA + `","isbn13":"9780306406157"}]`,
 		work2: `[{"id":"` + exprB + `","isbn13":"9780306406157"}]`,
 	}
-	path := writeFile(t, t.TempDir(), "README.md", listWith("  - 9780306406157\n"))
+	path := writeFile(t, t.TempDir(), "list.yaml", listWith("  - 9780306406157\n"))
 	result, rec := runCollection(t, f, path, false)
 	if result.Action != actionFailed || !strings.Contains(result.Message, work1) ||
 		!strings.Contains(result.Message, work2) {
@@ -279,16 +281,49 @@ func TestISBNWithSeveralMatchesIsRefusedWithCandidates(t *testing.T) {
 	}
 }
 
-func TestBookKeyIsRejectedBeforeAnyRequest(t *testing.T) {
-	path := writeFile(t, t.TempDir(), "README.md", listWith("  - book:standardebooks/x\n"))
-	result, rec := runCollection(t, sectionsAPI(), path, false)
-	if result.Action != actionFailed || !strings.Contains(result.Message, "book:") || len(rec.mu) != 0 {
-		t.Fatalf("result = %+v calls = %s", result, rec.calls())
+func TestCatalogueKeyResolvesAndAnEditionIsNamedByLanguageYearOrISBN(t *testing.T) {
+	f := sectionsAPI()
+	f.createKey = "sh/rl"
+	f.byKey = map[string]string{"book:fulton-intersection-theory": `{"id":"` + work3 + `","import_key":"book:fulton-intersection-theory","title":"Intersection Theory","type":"book"}`}
+	f.expressions = map[string]string{
+		work3: `[{"id":"` + exprA + `","language":"en","year":1998,"label":"Springer, 1998"},` +
+			`{"id":"` + exprB + `","language":"ru","year":1989,"label":"Мир, 1989","isbn13":"9780306406157"}]`,
+	}
+	path := writeFile(t, t.TempDir(), "list.yaml", listWith(
+		"  - work: book:fulton-intersection-theory\n    edition: ru-1989\n  - book:nobody-holds-this\n"))
+	result, _ := runCollection(t, f, path, false)
+	if result.Action != actionCreate || len(f.addedItems) != 1 || f.addedItems[0]["entity_id"] != work3 ||
+		f.addedItems[0]["expression_id"] != exprB {
+		t.Fatalf("result = %+v added = %v", result, f.addedItems)
+	}
+	if want := []string{"add:", "skip:not_indexed"}; !slices.Equal(actions(result), want) {
+		t.Errorf("items = %v", actions(result))
+	}
+
+	// The same pin by the edition's ISBN; an edition the work lacks fails the
+	// manifest before any write, naming what the work has.
+	f2 := sectionsAPI()
+	f2.byKey, f2.expressions = f.byKey, f.expressions
+	path = writeFile(t, t.TempDir(), "list.yaml", listWith("  - work: book:fulton-intersection-theory\n    edition: 978-0-306-40615-7\n"))
+	if result, _ = runCollection(t, f2, path, false); len(f2.addedItems) != 1 || f2.addedItems[0]["expression_id"] != exprB {
+		t.Fatalf("by ISBN: result = %+v added = %v", result, f2.addedItems)
+	}
+	path = writeFile(t, t.TempDir(), "list.yaml", listWith("  - work: book:fulton-intersection-theory\n    edition: fr-1990\n"))
+	result, rec := runCollection(t, sectionsAPI2(f), path, false)
+	if result.Action != actionFailed || !strings.Contains(result.Message, "Мир, 1989") ||
+		strings.Contains(rec.calls(), "POST /collections") {
+		t.Fatalf("result = %+v", result)
 	}
 }
 
+func sectionsAPI2(f *collectionAPI) *collectionAPI {
+	g := sectionsAPI()
+	g.byKey, g.expressions = f.byKey, f.expressions
+	return g
+}
+
 func TestSameWorkListedTwiceIsRefused(t *testing.T) {
-	path := writeFile(t, t.TempDir(), "README.md", listWith("  - "+work1+"\n  - https://libretimes.io/works/"+work1+"\n"))
+	path := writeFile(t, t.TempDir(), "list.yaml", listWith("  - "+work1+"\n  - https://libretimes.io/works/"+work1+"\n"))
 	result, _ := runCollection(t, sectionsAPI(), path, false)
 	if result.Action != actionFailed || !strings.Contains(result.Message, "same work") {
 		t.Fatalf("result = %+v", result)
@@ -296,15 +331,15 @@ func TestSameWorkListedTwiceIsRefused(t *testing.T) {
 }
 
 func TestUnknownWorkIDIsSkipped(t *testing.T) {
-	path := writeFile(t, t.TempDir(), "README.md", listWith("  - "+work1+"\n"))
+	path := writeFile(t, t.TempDir(), "list.yaml", listWith("  - "+work1+"\n"))
 	result, _ := runCollection(t, &collectionAPI{}, path, false)
 	if want := []string{"skip:not_found"}; !slices.Equal(actions(result), want) {
 		t.Errorf("items = %v", actions(result))
 	}
 }
 
-func TestEditionMustBeAnID(t *testing.T) {
-	path := writeFile(t, t.TempDir(), "README.md", listWith("  - work: "+work1+"\n    edition: second\n"))
+func TestEditionMustBeAnIDAnISBNOrLanguageYear(t *testing.T) {
+	path := writeFile(t, t.TempDir(), "list.yaml", listWith("  - work: "+work1+"\n    edition: second\n"))
 	result, rec := runCollection(t, sectionsAPI(), path, false)
 	if result.Action != actionFailed || len(rec.mu) != 0 {
 		t.Fatalf("result = %+v", result)

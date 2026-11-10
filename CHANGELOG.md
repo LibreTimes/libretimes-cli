@@ -11,6 +11,16 @@ stays there, serving MCP.
 
 ### Added
 
+- `lt collection create`, `add`, `rm`, `section add|rename|rm` and `delete`:
+  a reading list in one command at a time, items named by DOI, ISBN, arXiv
+  id, catalogue key (`book:<key>`), id or URL. `add` writes nothing if any
+  item names a work the site does not hold.
+- Collection manifests are plain `.yaml` or `.json` files. Items may be a
+  catalogue key (`book:<key>`, read through the new public `GET
+  /works/by-key`), and an `edition` an ISBN or `<language>-<year>`, so one
+  file works on every deployment. A `.md` manifest is accepted for a course
+  only; a plain manifest refuses a key it does not know.
+
 - `lt categories search <q>` and `lt categories resolve <term>… [--key k]…`
   — find a category by term, and see what a term or key becomes on save
   (TAXONOMY-INPUT, #1775). Search is loose (prefix, stem, typo, the

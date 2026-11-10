@@ -14,7 +14,6 @@ import (
 
 	"github.com/The-LibreTimes/libretimes-cli/internal/api"
 	"github.com/The-LibreTimes/libretimes-cli/internal/config"
-	"github.com/The-LibreTimes/libretimes-cli/internal/frontmatter"
 )
 
 // What one listed work of a collection resolves to. Additive only, like byline
@@ -109,6 +108,11 @@ func newCollectionCommand(e *env) *cobra.Command {
 	}
 	cmd.AddCommand(
 		newCollectionPublishCommand(e),
+		newCollectionCreateCommand(e),
+		newCollectionAddCommand(e),
+		newCollectionRmCommand(e),
+		newCollectionSectionCommand(e),
+		newCollectionDeleteCommand(e),
 		newCollectionLsCommand(e),
 		newCollectionShowCommand(e),
 		newCollectionExportCommand(e),
@@ -121,17 +125,21 @@ func newCollectionPublishCommand(e *env) *cobra.Command {
 	var dryRun, yes bool
 
 	cmd := &cobra.Command{
-		Use:   "publish <manifest.md>...",
+		Use:   "publish <manifest.yaml|.json>...",
 		Short: "Reconcile collection manifests as collections",
 		Long: "Reconcile one or more collection manifests as LibreTimes collections.\n\n" +
-			"The manifest's frontmatter names the collection (`import_key`, " +
-			"`collection_type`, `title`, `language`) and lists the files of its works in " +
-			"order under `items` and, grouped under headings, `sections` (title, description, " +
-			"items). An item is a work file, a work id or URL, a DOI, an arXiv id or an ISBN, " +
-			"or a mapping {work, note, edition}. Works not on the site yet, or still drafts, " +
-			"are skipped and picked up by the next run. Re-runs find sections by title, add " +
-			"what is missing, set notes and edition pins, and put the order back; nothing is " +
-			"ever removed. Run with --dry-run first.",
+			"A manifest is a .yaml or .json file naming the collection (`import_key`, " +
+			"`kind`, `title`, `language`) and listing its works in order under `items` and, " +
+			"grouped under headings, `sections` (title, description, items). An item is a " +
+			"work file, a work id or URL, a DOI, an arXiv id, an ISBN, a library catalogue " +
+			"key (book:<key>), or a mapping {work, note, edition}; `edition` is an ISBN, " +
+			"<language>-<year> (ru-1976) or an edition id. Name items by identifier or key " +
+			"and the same file works on any deployment. A course may instead be its folder's " +
+			"README.md, whose frontmatter is the manifest (the body is not sent).\n\n" +
+			"Works not on the site yet, or still drafts, are skipped and picked up by the " +
+			"next run. Re-runs find sections by title, add what is missing, set notes and " +
+			"edition pins, and put the order back; nothing is ever removed. Run with " +
+			"--dry-run first.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths, err := resolveFiles(args)
@@ -327,20 +335,14 @@ func newCollectionShowCommand(e *env) *cobra.Command {
 func publishCollection(ctx context.Context, client *api.Client, path string, dryRun bool) collectionResult {
 	result := collectionResult{Path: path}
 
-	raw, err := os.ReadFile(path)
+	meta, err := loadCollectionManifest(path)
 	if err != nil {
-		result.setFailure(err)
-		return result
-	}
-	meta, _, err := frontmatter.Split[frontmatter.CollectionMeta](string(raw))
-	if err != nil {
-		result.setFailure(err)
+		result.invalid("%s: %v", path, err)
 		return result
 	}
 
-	// No default key. A work's key can fall back to its path, but a manifest is
-	// a README in the collection's folder, and a key derived from that would
-	// name the file rather than the collection.
+	// No default key: a key derived from the file's path would name the file
+	// rather than the collection, and differ between two checkouts.
 	result.ImportKey = strings.TrimSpace(meta.ImportKey)
 	result.CollectionType = strings.TrimSpace(meta.CollectionType)
 	if kind := strings.TrimSpace(meta.Kind); kind != "" {
@@ -352,10 +354,10 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 	}
 	switch {
 	case result.ImportKey == "":
-		result.invalid("frontmatter has no `import_key`; a collection needs one, e.g. <author>/<course>")
+		result.invalid("the manifest has no `import_key`; a collection needs one, e.g. <author>/<list>")
 		return result
 	case result.CollectionType == "":
-		result.invalid("frontmatter has no `collection_type` (or `kind`), which is required and has no default (one of %s)",
+		result.invalid("the manifest has no `collection_type` (or `kind`), which is required and has no default (one of %s)",
 			strings.Join(api.CollectionTypeValues, ", "))
 		return result
 	case !slices.Contains(api.CollectionTypeValues, result.CollectionType):
@@ -363,10 +365,14 @@ func publishCollection(ctx context.Context, client *api.Client, path string, dry
 			strings.Join(api.CollectionTypeValues, ", "))
 		return result
 	case strings.TrimSpace(meta.Title) == "":
-		result.invalid("frontmatter has no `title`")
+		result.invalid("the manifest has no `title`")
 		return result
 	case strings.TrimSpace(meta.Language) == "":
-		result.invalid("frontmatter has no `language`, the language the title and description are written in")
+		result.invalid("the manifest has no `language`, the language the title and description are written in")
+		return result
+	case isMarkdownManifest(path) && result.CollectionType != "course":
+		result.invalid("a %s manifest is a .yaml or .json file; the README.md form is only for a "+
+			"course", result.CollectionType)
 		return result
 	case meta.Visibility != "" && !slices.Contains(api.CollectionVisibilityValues, meta.Visibility):
 		result.invalid("visibility %q is not one of %s (a collection is not a work: "+
