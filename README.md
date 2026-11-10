@@ -119,7 +119,12 @@ lt work translations set WORK FILE...     add or update a work's translations
 lt work translations ls WORK
 lt work translations rm WORK LANG...
 
-lt collection publish MANIFEST...         reconcile a course or a curated list
+lt collection create --kind K --title T   an empty list (--language, --category, --visibility, --import-key)
+lt collection add COLLECTION ITEM...      add works by DOI, ISBN, arXiv id, book:<key>, id or URL
+lt collection rm COLLECTION ITEM...       take works out (the works stay)
+lt collection section add|rename|rm       a list's headings, found by title
+lt collection delete COLLECTION           delete the list (the works stay)
+lt collection publish MANIFEST...         reconcile a .yaml/.json list (or a course README)
 lt collection ls
 lt collection show COLLECTION
 lt collection export COLLECTION           the list as CSL-JSON (-o FILE, --lang)
@@ -128,8 +133,8 @@ lt collection translations set|ls|rm      as for a work; title and description o
 
 Commands are nouns first, then a verb, the way `gh pr create` is. A book is a
 `type` of work and a course is a `collection_type` of collection, not commands
-of their own. `WORK` and `COLLECTION` are the markdown file you published from
-(found by its `import_key`), an id, or a `/works/<id>` / `/collections/<id>` URL.
+of their own. `WORK` and `COLLECTION` are the file you published from (found by
+its `import_key`), an id, or a `/works/<id>` / `/collections/<id>` URL.
 
 Global flags: `--env {prod,dev}`, `--api-url`, `--auth-url`, `--realm`,
 `--client-id`, `--json`, `--quiet`.
@@ -348,103 +353,110 @@ will add, `present` for one already there.
 A collection is an ordered list of works: a course (one lecture course's notes
 and sheets, in order), a plain curated `collection`, a `recommendation` list, or
 a `reading_list` (a bibliography: sections, a note under each reference, a
-pinned edition). It is described by a manifest, usually the `README.md` in its
-folder:
+pinned edition).
 
-```yaml
----
-import_key: ivanov/analysis-1          # required; identifies the collection on re-runs
-collection_type: course                 # required: course, collection, recommendation or reading_list (`kind:` also works)
-title: Analysis 1 (autumn 2026)         # required
-language: en                            # required; the language of title and description
-description: Notes from the lectures.   # optional
-visibility: public                      # public, authenticated, connections or owner
-category_ids: [019f8f79-4915-7fa3-aa13-4604b0de40b5]   # optional
-items:                                  # work files, relative to the manifest, in order
-  - lecture-01.md
-  - lecture-02.md
-  - sheet-01.md
----
-Anything below the frontmatter is yours; it is never sent.
-```
+#### One command at a time
 
 ```sh
-lt work publish ivanov/analysis-1/*.md --yes
-lt collection publish ivanov/analysis-1/README.md --dry-run
-lt collection publish ivanov/analysis-1/README.md --yes
+lt collection create --kind reading_list --title 'Algebra' --language en \
+    --category algebra --category linear-algebra --import-key me/algebra --yes
+lt collection add COLLECTION 978-0-387-90244-9 10.1007/978-3-642-29514-0 --yes
+lt collection add COLLECTION book:fulton-intersection-theory --section 'Further' \
+    --edition ru-1989 --note 'The Russian translation.' --yes
+lt collection rm COLLECTION 10.1007/978-3-642-29514-0 --yes
+lt collection section rename COLLECTION 'Further' 'Further reading' --yes
 ```
 
-- **Works are found by their own `import_key`.** `lt` reads each listed file's
-  frontmatter and finds the work `lt work publish` made from it. Change a work's
-  key in its file and the collection follows.
-- **Publish works first; the collection picks them up.** A listed work that is
-  not on the site yet is skipped (`not_published`), and so is one that is a
-  draft or was deleted. Run `lt collection publish` again after the next work
-  and it is added.
-- **The manifest decides the order.** Missing works are appended and the
-  collection is put back in the manifest's order if it has drifted.
-- **Only additive.** Nothing is removed from a collection. Items the manifest
-  does not name stay where they are and are counted as `unlisted`.
-- **A collection is not a work.** Its visibility is one of `public`,
-  `authenticated`, `connections`, `owner`; there is no `private` or `by_link`.
-  It has no byline: credit people on each work with `contributors`.
-- **A missing file fails the manifest before anything is written.**
+- **An item names a work the site already holds:** a DOI, an arXiv id, an ISBN
+  (which pins the edition carrying it), a library catalogue key
+  (`book:fulton-intersection-theory`, as the library's catalogue names the
+  book), a work id or `/works/<id>` URL, or a work file you published. `lt`
+  never creates a work: if any item is not held, `add` writes nothing and says
+  which (`skip: not_indexed`).
+- **`--edition`** pins one edition by its ISBN, `<language>-<year>` (`ru-1989`)
+  or edition id; with `--note`, it takes a single item. A work already in the
+  list gets the note, edition and `--section` given.
+- **`--section`** is found by title and made when missing; the items go at its
+  end.
+- **`rm`** reports `remove` or `absent` per item. `section rm` moves the
+  heading's works to the top of the list.
 
-`--dry-run` reports `create` or `update` for the collection and `add`,
-`present` or `skip` for each work.
+#### Manifests
 
-#### Sections, notes and editions
-
-A reading list groups its items under headings. `items:` at the top are the
-unsectioned preamble that reads first; each entry of `sections:` has a `title`,
-an optional `description` and its own `items:`. An item is a string or a
-mapping:
+A list kept in a file is a plain `.yaml` or `.json` manifest, reconciled by
+`lt collection publish`. Name items by identifier or key, never by id, and the
+same file means the same list on dev and production:
 
 ```yaml
----
-import_key: ivanov/topology-reading
-kind: reading_list
-title: Topology reading list
-language: en
-keywords: [topology, algebra]           # free terms that name no category
-public_comments: false                  # whether the discussion is open
-items:
-  - 10.1007/978-1-4612-0647-7           # a DOI
+import_key: ivanov/topology-reading      # required; identifies the collection on re-runs
+kind: reading_list                       # required: course, collection, recommendation or reading_list
+title: Topology reading list             # required
+language: en                             # required; the language of title and description
+description: What to read, in order.     # optional
+visibility: public                       # public, authenticated, connections or owner
+categories: [algebraic-topology]         # category keys (`lt categories`)
+keywords: [topology]                     # free terms that name no category
+public_comments: false                   # whether the discussion is open
+items:                                   # the unsectioned preamble, read first
+  - 10.1007/978-1-4612-0647-7            # a DOI
 sections:
   - title: Basics
     description: Start here.
     items:
-      - lecture-01.md                                   # a work file you published
-      - https://libretimes.io/works/019f8f79-4915-7fa3-aa13-4604b0de40b5
+      - book:hatcher-algebraic-topology                 # a catalogue key
       - work: 978-0-387-95295-4                         # an ISBN: also pins that edition
         note: Chapters 1 to 3 are enough.
   - title: Further
     items:
-      - work: 019f8f79-4915-7fa3-aa13-4604b0de40b6
-        edition: 019f8f79-4915-7fa3-aa13-4604b0de40b7   # pin an edition (an expression id)
----
+      - work: book:fulton-intersection-theory
+        edition: ru-1989                                # pin by ISBN or <language>-<year>
 ```
 
-- **An item names a work the site already holds.** A work file (by its
-  `import_key`), a work id, a `/works/<id>` URL (with or without a language
-  prefix), a DOI, an arXiv id or URL, or an ISBN. A DOI, arXiv id or ISBN
-  matches only a work that is already indexed (`skip: not_indexed` otherwise):
-  `lt` never creates a work. An ISBN also pins the edition that carries it; two
-  matches fail the manifest and list the candidates. `book:<key>` (a catalogue
-  import key) is refused, as the public API cannot read it: use the book's URL
-  or ISBN.
-- **`note`** (at most 2000 characters) shows under the reference. **`edition`**
-  pins one edition of the work, by expression id; a pin that is not an edition
-  of the work is refused.
-- **Re-runs are idempotent.** Sections are found by title and created when
-  missing, so keep titles unique; notes and pins are set where the manifest
-  states them; a work is moved to its section and the section-aware order is put
-  back. Nothing is removed: a section or work the manifest does not name stays.
+The same in JSON (`lt collection publish list.json`):
+
+```json
+{"import_key": "ivanov/topology-reading", "kind": "reading_list", "title": "Topology reading list",
+ "language": "en", "sections": [{"title": "Basics", "items": [{"work": "978-0-387-95295-4", "note": "Chapters 1 to 3."}]}]}
+```
+
+```sh
+lt collection publish topology-reading.yaml --dry-run
+lt collection publish topology-reading.yaml --yes
+```
+
+- **A plain manifest is strict:** a key `lt` does not know is an error (a typo
+  would otherwise be silently ignored).
+- **A course may stay its folder's `README.md`**, the frontmatter being the
+  manifest and the body the folder's own notes, never sent. Items there are
+  usually the lecture files, found by their `import_key`. Any other kind in a
+  `.md` file is refused.
+- **Publish works first; the collection picks them up.** A listed work that is
+  not on the site yet is skipped (`not_published` for a file, `not_indexed` for
+  an identifier or key), and so is one that is a draft or was deleted. Run
+  `lt collection publish` again later and it is added.
+- **The manifest decides the order.** Missing works are appended and the
+  collection is put back in the manifest's order if it has drifted. Sections
+  are found by title and created when missing, so keep titles unique; notes and
+  pins are set where the manifest states them.
+- **Only additive.** Nothing is removed from a collection. Items the manifest
+  does not name stay where they are and are counted as `unlisted` (use
+  `lt collection rm`).
+- **`note`** is at most 2000 characters. **`edition`** is an ISBN,
+  `<language>-<year>` or an edition id; one that names no edition of the work,
+  or two, fails the manifest before any write and lists the work's editions.
+  An ISBN item that matches several editions fails the same way.
+- **A collection is not a work.** Its visibility is one of `public`,
+  `authenticated`, `connections`, `owner`; there is no `private` or `by_link`.
+  It has no byline.
+- **A missing file fails the manifest before anything is written.**
+
+`--dry-run` reports `create` or `update` for the collection and `add`,
+`present`, `update` or `skip` for each work.
 
 #### Export and BibTeX
 
 ```sh
-lt collection export ivanov/topology-reading/README.md -o reading.json
+lt collection export topology-reading.yaml -o reading.json
 lt collection export 019f8f79-... --lang ru
 lt collection export 019f8f79-... | pandoc -f csljson -t biblatex > reading.bib   # or -t bibtex
 ```

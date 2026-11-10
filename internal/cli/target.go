@@ -70,11 +70,7 @@ func resolveWork(ctx context.Context, client *api.Client, arg string) (string, e
 // resolveCollection turns a <collection> argument into a collection id.
 func resolveCollection(ctx context.Context, client *api.Client, arg string) (string, error) {
 	if isFile(arg) {
-		raw, err := os.ReadFile(arg)
-		if err != nil {
-			return "", fail(ExitBadArguments, "%s: %v", arg, err)
-		}
-		meta, _, err := frontmatter.Split[frontmatter.CollectionMeta](string(raw))
+		meta, err := loadCollectionManifest(arg)
 		if err != nil {
 			return "", fail(ExitBadArguments, "%s: %v", arg, err)
 		}

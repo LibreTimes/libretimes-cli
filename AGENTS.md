@@ -149,31 +149,34 @@ Things to branch on:
 ## Collections
 
 `lt collection publish MANIFEST... --dry-run --json` plans one collection per
-manifest (see README.md for the frontmatter; `collection_type` is required).
-Each result has `action` (`create`, `update`, `failed`), `collection_id`,
-`collection_type`, and an `items` array, each with an `action`:
+manifest: a `.yaml` or `.json` file (a course may also be its folder's
+`README.md`; any other kind in a `.md` file fails with `validation_error`).
+See README.md for the shape; `kind` (or `collection_type`) is required, and an
+unknown key in a plain manifest fails it. Each result has `action` (`create`,
+`update`, `failed`), `collection_id`, `collection_type`, and an `items` array,
+each with an `action`:
 
 | Action | Meaning |
 |---|---|
 | `add` | the run adds this work to the collection |
 | `present` | already in the collection; nothing is sent |
+| `update` | present, and its `changes` (`note`, `edition`, `section`) are set |
 | `skip` | not added; `reason` says why |
 
 | Reason | Meaning |
 |---|---|
-| `not_published` | no work holds the item's `import_key` yet. Publish it, then re-run |
+| `not_published` | no work holds the item file's `import_key` yet. Publish it, then re-run |
 | `draft` | a draft holds it |
 | `deleted` | a deleted work holds it. Same rule as `blocked`: a person decides |
 | `not_found` | a listed work id or URL names no work visible to you |
-| `not_indexed` | a listed DOI, arXiv id or ISBN names no work the site holds. `lt` never creates one |
+| `not_indexed` | a listed DOI, arXiv id, ISBN or catalogue key (`book:<key>`) names no work the site holds. `lt` never creates one |
 
-A manifest may also carry `sections:` and mapping items `{work, note, edition}`
-(see README.md). Each result then has `sections` (`create`, `present` or
-`update`, found by title) and, per item, `section`, `edition` and `changes`
-(`note`, `edition`, `section`; the item's `action` is `update`). An ISBN that
-matches several editions fails the manifest before any write, listing the
-candidates; `book:<key>` is refused; a pin that is not an edition of the work
-fails with `validation_error`.
+Name items by identifier or key, not by id: the manifest then works on any
+deployment. An `edition` is an ISBN, `<language>-<year>` (`ru-1976`) or an
+edition id; one that names no edition of the work, or several, fails the
+manifest before any write and lists the work's editions, as does an ISBN item
+that matches several editions. Sections come back under `sections` (`create`,
+`present` or `update`, found by title).
 `lt collection export COLLECTION` prints the list as CSL-JSON on stdout.
 
 A skip does not fail the collection and does not change the exit code. Also on
@@ -193,6 +196,22 @@ Branch on these:
   later run would otherwise create another. Do not retry until the platform is
   updated.
 - Nothing is ever removed from a collection, except that rollback.
+
+### One command at a time
+
+`lt collection create --kind K --title T --yes --json` returns `action`,
+`collection_id` and, with `--import-key`, `import_key` (a key already held is
+`conflict`). `lt collection add COLLECTION ITEM... --yes --json` returns
+`{collection_id, section, items}`; items read as in a manifest (`add`,
+`present`, `update` with `changes`, `skip` with `reason`). **If any item is a
+`skip`, nothing is written** and the command exits 1 with `not_found`; the
+report on stdout says which. `--edition` and `--note` take one item.
+`lt collection rm COLLECTION ITEM...` reports `remove` or `absent` per item.
+`lt collection section add|rename|rm COLLECTION TITLE` reports the section's
+`action` (`create`, `present`, `update`, `rename`, `delete`, or `absent` for an
+`rm` of a title that is not there). `lt collection delete COLLECTION --yes`
+deletes the list; its works are untouched. Every one of them needs `--yes` or
+`--dry-run`.
 
 ## Books
 
