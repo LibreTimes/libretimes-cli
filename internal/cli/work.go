@@ -36,6 +36,7 @@ func newWorkCommand(e *env) *cobra.Command {
 		newWorkAttachmentsCommand(e),
 		newWorkCiteCommand(e),
 		newWorkRecordCommand(e),
+		newWorkRefsCommand(e),
 		newTranslationsCommand(e, workTranslations),
 	)
 	return cmd
